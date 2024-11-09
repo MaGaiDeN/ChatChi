@@ -108,35 +108,44 @@ function enforceCorrectTexts() {
 
 // Función mejorada para manejar la presencia
 async function updatePresence(user) {
-    if (!user) return;
+    if (!user) {
+        console.log('⚠ updatePresence: No hay usuario');
+        return;
+    }
 
+    console.log('→ Iniciando actualización de presencia para:', user.email);
+    
     try {
         const userPresenceRef = ref(database, `presence/${user.uid}`);
         const connectedRef = ref(database, '.info/connected');
         
         onValue(connectedRef, async (snap) => {
+            console.log('→ Estado de conexión:', snap.val());
+            
             if (snap.val() === true) {
-                // Configurar limpieza al desconectarse
-                await onDisconnect(userPresenceRef).set(null);
-                
-                // Obtener nombre de usuario
-                const userRef = ref(database, `users/${user.uid}`);
-                const userSnapshot = await get(userRef);
-                const username = userSnapshot.exists() ? userSnapshot.val().username : null;
-
-                // Actualizar presencia
-                await set(userPresenceRef, {
-                    online: true,
-                    email: user.email,
-                    username: username,
-                    lastSeen: serverTimestamp()
-                });
-                
-                console.log('Presencia actualizada para:', user.email);
+                try {
+                    await onDisconnect(userPresenceRef).remove();
+                    console.log('✓ Configurada limpieza al desconectar');
+                    
+                    const userRef = ref(database, `users/${user.uid}`);
+                    const snapshot = await get(userRef);
+                    const username = snapshot.exists() ? snapshot.val().username : null;
+                    
+                    await set(userPresenceRef, {
+                        online: true,
+                        email: user.email,
+                        username: username,
+                        lastSeen: serverTimestamp()
+                    });
+                    
+                    console.log('✓ Presencia actualizada exitosamente');
+                } catch (error) {
+                    console.error('✗ Error al configurar presencia:', error);
+                }
             }
         });
     } catch (error) {
-        console.error('Error actualizando presencia:', error);
+        console.error('✗ Error en updatePresence:', error);
     }
 }
 
@@ -196,59 +205,47 @@ const provider = new GoogleAuthProvider();
 provider.addScope('email');
 provider.addScope('profile');
 
-// Función mejorada de autenticación con Google
+// Función de autenticación con Google con logs
 window.handleGoogleAuth = async function() {
     const errorDiv = document.getElementById('loginError');
+    console.log('1. Iniciando proceso de autenticación con Google');
+    
     try {
-        const auth = getAuth();
+        const provider = new GoogleAuthProvider();
+        console.log('2. Proveedor de Google creado');
         
-        // Configurar el proveedor
         provider.setCustomParameters({
-            prompt: 'select_account',
-            login_hint: 'user@example.com',
-            // Asegurarse de que coincida con el dominio de GitHub Pages
-            redirect_uri: 'https://magaiden.github.io/ChatChi/'
+            prompt: 'select_account'
         });
+        console.log('3. Parámetros personalizados configurados');
 
-        // Intentar la redirección
+        console.log('4. Intentando signInWithRedirect');
         await signInWithRedirect(auth, provider);
+        console.log('5. Redirección iniciada'); // Este log probablemente no se vea por la redirección
     } catch (error) {
-        console.error('Error iniciando auth:', error);
-        errorDiv.textContent = 'Error al iniciar el proceso de login';
+        console.error('Error en handleGoogleAuth:', error);
+        errorDiv.textContent = 'Error al iniciar sesión con Google';
     }
 };
 
-// Manejar el resultado de la redirección
+// Manejador del resultado de la redirección
 document.addEventListener('DOMContentLoaded', async () => {
-    const auth = getAuth();
+    console.log('A. DOMContentLoaded - Iniciando verificación de redirección');
+    
     try {
+        console.log('B. Intentando obtener resultado de redirección');
         const result = await getRedirectResult(auth);
+        
         if (result) {
-            // Login exitoso
-            console.log('Usuario autenticado:', result.user.email);
-            // No necesitamos hacer nada más aquí, onAuthStateChanged se encargará
+            console.log('C. Resultado de redirección obtenido:', {
+                email: result.user.email,
+                uid: result.user.uid
+            });
+        } else {
+            console.log('D. No hay resultado de redirección (normal en la primera carga)');
         }
     } catch (error) {
-        console.error('Error en redirección:', error);
-        const errorDiv = document.getElementById('loginError');
-        if (errorDiv) {
-            switch (error.code) {
-                case 'auth/account-exists-with-different-credential':
-                    errorDiv.textContent = 'Ya existe una cuenta con este email';
-                    break;
-                case 'auth/popup-closed-by-user':
-                    errorDiv.textContent = 'Proceso de login cancelado';
-                    break;
-                case 'auth/cancelled-popup-request':
-                    errorDiv.textContent = 'Solo se permite una ventana de login';
-                    break;
-                case 'auth/popup-blocked':
-                    errorDiv.textContent = 'El navegador bloqueó la ventana de login';
-                    break;
-                default:
-                    errorDiv.textContent = 'Error en el proceso de login';
-            }
-        }
+        console.error('E. Error al obtener resultado de redirección:', error);
     }
 });
 
@@ -389,34 +386,48 @@ async function clearPresence(userId) {
 
 // Listener de autenticación mejorado
 onAuthStateChanged(auth, async (user) => {
+    console.log('→ Estado de autenticación cambiado');
+    
     if (user) {
-        console.log('Usuario autenticado:', user.email);
+        console.log('✓ Usuario autenticado:', {
+            email: user.email,
+            uid: user.uid,
+            displayName: user.displayName
+        });
+        
         document.getElementById('authContainer').style.display = 'none';
         document.getElementById('chatContainer').style.display = 'block';
         document.getElementById('userEmail').textContent = user.email;
         
-        // Actualizar presencia
-        await updatePresence(user);
+        console.log('✓ Actualizando UI para usuario autenticado');
         
-        // Obtener nombre de usuario
-        const userRef = ref(database, `users/${user.uid}`);
-        const snapshot = await get(userRef);
-        if (snapshot.exists()) {
-            document.getElementById('username').textContent = snapshot.val().username;
-        } else {
-            document.getElementById('usernameModal').style.display = 'block';
+        try {
+            console.log('✓ Iniciando actualización de presencia');
+            await updatePresence(user);
+            
+            const userRef = ref(database, `users/${user.uid}`);
+            const snapshot = await get(userRef);
+            
+            if (snapshot.exists()) {
+                console.log('✓ Datos de usuario encontrados en la base de datos');
+                document.getElementById('username').textContent = snapshot.val().username;
+            } else {
+                console.log('✓ Usuario nuevo - Mostrando modal de nombre de usuario');
+                document.getElementById('usernameModal').style.display = 'block';
+            }
+        } catch (error) {
+            console.error('✗ Error al actualizar datos de usuario:', error);
         }
     } else {
-        console.log('Usuario desconectado');
+        console.log('✗ Usuario no autenticado - Mostrando pantalla de login');
         document.getElementById('authContainer').style.display = 'flex';
         document.getElementById('chatContainer').style.display = 'none';
         
         // Limpiar UI
-        document.getElementById('messages').innerHTML = '';
-        document.getElementById('usersList').innerHTML = '';
-        document.getElementById('userCount').textContent = '0';
-        document.getElementById('username').textContent = '';
-        document.getElementById('userEmail').textContent = '';
+        ['messages', 'usersList', 'userCount', 'username', 'userEmail'].forEach(id => {
+            const element = document.getElementById(id);
+            if (element) element.textContent = '';
+        });
     }
 });
 
