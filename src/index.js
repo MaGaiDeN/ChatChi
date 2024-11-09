@@ -21,7 +21,8 @@ import {
     signOut,
     onAuthStateChanged,
     signInWithRedirect,
-    remove
+    remove,
+    getRedirectResult
 } from 'firebase/auth';
 
 // Configuración de Firebase
@@ -195,13 +196,38 @@ window.handleGoogleAuth = async function() {
     const errorDiv = document.getElementById('loginError');
     try {
         const provider = new GoogleAuthProvider();
-        // Usar solo signInWithRedirect
+        provider.setCustomParameters({
+            prompt: 'select_account',
+            // Agregar el dominio de redirección correcto
+            redirect_uri: 'https://magaiden.github.io/ChatChi/'
+        });
+        
+        // Usar signInWithRedirect
         await signInWithRedirect(auth, provider);
+        
+        // Manejar el resultado de la redirección
+        const result = await getRedirectResult(auth);
+        if (result) {
+            console.log('Login exitoso:', result.user.email);
+            errorDiv.textContent = '';
+        }
     } catch (error) {
         console.error('Error en login con Google:', error);
         errorDiv.textContent = 'Error al iniciar sesión con Google';
     }
 };
+
+// Agregar el manejador de redirección
+getRedirectResult(auth)
+    .then((result) => {
+        if (result) {
+            console.log('Login exitoso después de redirección:', result.user.email);
+        }
+    })
+    .catch((error) => {
+        console.error('Error después de redirección:', error);
+        document.getElementById('loginError').textContent = 'Error al iniciar sesión con Google';
+    });
 
 window.handleEmailAuth = async function(type) {
     const email = document.getElementById('emailInput').value.trim();
