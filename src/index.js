@@ -1,6 +1,6 @@
 import './styles.css';
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, push, onChildAdded, set, get } from 'firebase/database';
+import { getDatabase, ref, push, onChildAdded, set, get, onValue, onDisconnect } from 'firebase/database';
 import { 
     getAuth,
     signInWithEmailAndPassword, 
@@ -29,6 +29,10 @@ const auth = getAuth(app);
 const database = getDatabase(app);
 const messagesRef = ref(database, 'messages');
 const googleProvider = new GoogleAuthProvider();
+
+// Referencia para usuarios conectados
+const connectedRef = ref(database, '.info/connected');
+const usersRef = ref(database, 'users');
 
 // Función para guardar el nombre de usuario en la base de datos
 async function saveUsernameToDb(uid, username) {
@@ -129,6 +133,25 @@ onAuthStateChanged(auth, async (user) => {
         } catch (error) {
             console.error('Error al cargar datos de usuario:', error);
         }
+
+        // Configurar presencia
+        onValue(connectedRef, (snap) => {
+            if (snap.val() === true) {
+                updateUserConnection(user.uid, true);
+                
+                // Desconectar cuando el usuario se va
+                onDisconnect(ref(database, `users/${user.uid}/status`)).set({
+                    online: false,
+                    lastChanged: Date.now()
+                });
+            }
+        });
+
+        // Escuchar cambios en la lista de usuarios
+        onValue(usersRef, (snapshot) => {
+            const users = snapshot.val() || {};
+            updateUsersList(users);
+        });
     } else {
         document.getElementById('authContainer').style.display = 'flex';
         document.getElementById('chatContainer').style.display = 'none';
@@ -196,4 +219,38 @@ window.onclick = function(event) {
     if (event.target === modal) {
         modal.style.display = 'none';
     }
-}; 
+};
+
+// Función para actualizar el estado de conexión del usuario
+function updateUserConnection(uid, isOnline) {
+    const userStatusRef = ref(database, `users/${uid}/status`);
+    set(userStatusRef, {
+        online: isOnline,
+        lastChanged: Date.now()
+    });
+}
+
+// Función para actualizar la lista de usuarios
+function updateUsersList(users) {
+    const usersList = document.getElementById('usersList');
+    const userCount = document.getElementById('userCount');
+    usersList.innerHTML = '';
+    let onlineCount = 0;
+
+    Object.entries(users).forEach(([uid, userData]) => {
+        if (userData.username) {
+            const isOnline = userData.status?.online;
+            if (isOnline) onlineCount++;
+
+            const userElement = document.createElement('div');
+            userElement.className = `user-item ${isOnline ? 'online' : 'offline'}`;
+            userElement.innerHTML = `
+                <span class="user-status"></span>
+                <span class="user-name">${userData.username}</span>
+            `;
+            usersList.appendChild(userElement);
+        }
+    });
+
+    userCount.textContent = onlineCount;
+}

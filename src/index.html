@@ -48,10 +48,27 @@
                 </button>
             </div>
         </div>
-        <div class="chat-messages" id="messages"></div>
-        <div class="chat-input">
-            <input type="text" id="messageInput" placeholder="Escribe un mensaje...">
-            <button onclick="sendMessage()">Enviar</button>
+        
+        <div class="chat-layout">
+            <!-- Panel principal del chat -->
+            <div class="chat-main">
+                <div class="chat-messages" id="messages"></div>
+                <div class="chat-input">
+                    <input type="text" id="messageInput" placeholder="Escribe un mensaje...">
+                    <button onclick="sendMessage()">Enviar</button>
+                </div>
+            </div>
+            
+            <!-- Panel de usuarios conectados -->
+            <div class="users-panel">
+                <div class="users-header">
+                    <h3>Usuarios conectados</h3>
+                    <span id="userCount">0</span>
+                </div>
+                <div id="usersList" class="users-list">
+                    <!-- Los usuarios se agregarán aquí dinámicamente -->
+                </div>
+            </div>
         </div>
     </div>
 </body>
