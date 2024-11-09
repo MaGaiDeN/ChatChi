@@ -23,18 +23,14 @@
 
     <div id="usernameModal" class="modal" style="display: none;">
         <div class="modal-content">
-            <h3 data-text="Cambiar nombre de usuario">Cambiar nombre de usuario</h3>
+            <h3>Cambiar nombre de usuario</h3>
             <input 
                 type="text" 
                 id="usernameInput" 
-                placeholder="Escribe tu nuevo nombre de usuario"
+                placeholder="Escribe tu nombre de usuario"
                 maxlength="20"
             >
-            <button 
-                onclick="saveUsername()" 
-                data-text="Guardar nombre">
-                Guardar nombre
-            </button>
+            <button onclick="saveUsername()">Guardar nombre</button>
         </div>
     </div>
 
@@ -48,8 +44,7 @@
                 <button 
                     type="button" 
                     onclick="showChangeUsername()" 
-                    class="change-name-btn"
-                    data-text="Cambiar nombre de usuario">
+                    class="change-name-btn">
                     Cambiar nombre de usuario
                 </button>
                 <button 

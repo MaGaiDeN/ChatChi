@@ -39,17 +39,50 @@ const auth = getAuth(app);
 const database = getDatabase(app);
 const messagesRef = ref(database, 'messages');
 
+// Función para forzar textos correctos
+function enforceCorrectTexts() {
+    // Botón de cambiar nombre
+    const changeNameBtn = document.querySelector('.change-name-btn');
+    if (changeNameBtn) {
+        changeNameBtn.textContent = 'Cambiar nombre de usuario';
+    }
+
+    // Título del modal
+    const modalTitle = document.querySelector('#usernameModal h3');
+    if (modalTitle) {
+        modalTitle.textContent = 'Cambiar nombre de usuario';
+    }
+
+    // Botón del modal
+    const modalButton = document.querySelector('#usernameModal button');
+    if (modalButton) {
+        modalButton.textContent = 'Guardar nombre';
+    }
+}
+
 // IMPORTANTE: Definir las funciones globales antes de que se cargue el HTML
 window.handleGoogleAuth = async function() {
     const errorDiv = document.getElementById('loginError');
     try {
         const provider = new GoogleAuthProvider();
+        // Configurar el proveedor para manejar mejor el popup
+        provider.setCustomParameters({
+            prompt: 'select_account',
+            display: 'popup'
+        });
+        
         const result = await signInWithPopup(auth, provider);
         console.log('Login exitoso:', result.user.email);
         errorDiv.textContent = '';
     } catch (error) {
         console.error('Error en login con Google:', error);
-        errorDiv.textContent = error.message;
+        if (error.code === 'auth/popup-closed-by-user') {
+            errorDiv.textContent = 'Ventana de inicio de sesión cerrada';
+        } else if (error.code === 'auth/cancelled-popup-request') {
+            errorDiv.textContent = 'Operación cancelada';
+        } else {
+            errorDiv.textContent = 'Error al iniciar sesión con Google';
+        }
     }
 };
 
@@ -82,7 +115,11 @@ window.handleLogout = async function() {
 
 window.showChangeUsername = function() {
     const modal = document.getElementById('usernameModal');
-    modal.style.display = 'block';
+    if (modal) {
+        // Forzar textos correctos antes de mostrar
+        enforceCorrectTexts();
+        modal.style.display = 'block';
+    }
 };
 
 window.saveUsername = async function() {
@@ -134,12 +171,16 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById('chatContainer').style.display = 'block';
         document.getElementById('userEmail').textContent = user.email;
         
+        // Forzar textos correctos
+        enforceCorrectTexts();
+        
         const userRef = ref(database, `users/${user.uid}`);
         const snapshot = await get(userRef);
         if (snapshot.exists()) {
             document.getElementById('username').textContent = snapshot.val().username;
         } else {
             document.getElementById('usernameModal').style.display = 'block';
+            enforceCorrectTexts();
         }
     } else {
         document.getElementById('authContainer').style.display = 'flex';
@@ -159,3 +200,6 @@ onChildAdded(messagesRef, (snapshot) => {
     messagesDiv.appendChild(messageElement);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 });
+
+// Llamar a enforceCorrectTexts periódicamente
+setInterval(enforceCorrectTexts, 1000);
