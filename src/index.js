@@ -55,12 +55,20 @@ window.handleGoogleAuth = async () => {
     const errorDiv = document.getElementById('loginError');
     try {
         const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({
+            prompt: 'select_account'
+        });
+        
         const result = await signInWithPopup(auth, provider);
         console.log('Login exitoso:', result.user.email);
         errorDiv.textContent = '';
     } catch (error) {
         console.error('Error en login con Google:', error);
-        errorDiv.textContent = error.message;
+        if (error.code === 'auth/popup-closed-by-user') {
+            errorDiv.textContent = 'Inicio de sesión cancelado';
+        } else {
+            errorDiv.textContent = 'Error al iniciar sesión con Google';
+        }
     }
 };
 
