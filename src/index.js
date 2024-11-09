@@ -39,24 +39,63 @@ const auth = getAuth(app);
 const database = getDatabase(app);
 const messagesRef = ref(database, 'messages');
 
-// Función para forzar textos correctos
+// Función mejorada para validar email
+function isValidEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+}
+
+// Función para manejar errores de autenticación
+function handleAuthError(error, errorDiv) {
+    console.error('Error en auth:', error);
+    switch (error.code) {
+        case 'auth/invalid-email':
+            errorDiv.textContent = 'El email no es válido';
+            break;
+        case 'auth/weak-password':
+            errorDiv.textContent = 'La contraseña debe tener al menos 6 caracteres';
+            break;
+        case 'auth/email-already-in-use':
+            errorDiv.textContent = 'Este email ya está registrado';
+            break;
+        case 'auth/user-not-found':
+            errorDiv.textContent = 'Usuario no encontrado';
+            break;
+        case 'auth/wrong-password':
+            errorDiv.textContent = 'Contraseña incorrecta';
+            break;
+        default:
+            errorDiv.textContent = 'Error en la autenticación';
+    }
+}
+
+// Función mejorada para forzar textos correctos
 function enforceCorrectTexts() {
-    // Botón de cambiar nombre
-    const changeNameBtn = document.querySelector('.change-name-btn');
-    if (changeNameBtn) {
-        changeNameBtn.textContent = 'Cambiar nombre de usuario';
-    }
+    const elements = {
+        changeNameBtn: document.querySelector('.change-name-btn'),
+        modalTitle: document.querySelector('#usernameModal h3'),
+        modalButton: document.querySelector('#usernameModal button'),
+        modalInput: document.querySelector('#usernameInput')
+    };
 
-    // Título del modal
-    const modalTitle = document.querySelector('#usernameModal h3');
-    if (modalTitle) {
-        modalTitle.textContent = 'Cambiar nombre de usuario';
-    }
+    const texts = {
+        changeNameBtn: 'Cambiar nombre de usuario',
+        modalTitle: 'Cambiar nombre de usuario',
+        modalButton: 'Guardar nombre',
+        modalInput: 'Escribe tu nombre de usuario'
+    };
 
-    // Botón del modal
-    const modalButton = document.querySelector('#usernameModal button');
-    if (modalButton) {
-        modalButton.textContent = 'Guardar nombre';
+    for (const [key, element] of Object.entries(elements)) {
+        if (element) {
+            if (element.tagName === 'INPUT') {
+                element.placeholder = texts[key];
+            } else {
+                element.textContent = texts[key];
+            }
+            // Agregar atributo para evitar traducción
+            element.setAttribute('translate', 'no');
+            element.classList.add('notranslate');
+        }
     }
 }
 
@@ -87,9 +126,19 @@ window.handleGoogleAuth = async function() {
 };
 
 window.handleEmailAuth = async function(type) {
-    const email = document.getElementById('emailInput').value;
+    const email = document.getElementById('emailInput').value.trim();
     const password = document.getElementById('passwordInput').value;
     const errorDiv = document.getElementById('loginError');
+
+    if (!isValidEmail(email)) {
+        errorDiv.textContent = 'Por favor, introduce un email válido';
+        return;
+    }
+
+    if (!password || password.length < 6) {
+        errorDiv.textContent = 'La contraseña debe tener al menos 6 caracteres';
+        return;
+    }
 
     try {
         if (type === 'login') {
@@ -99,8 +148,7 @@ window.handleEmailAuth = async function(type) {
         }
         errorDiv.textContent = '';
     } catch (error) {
-        console.error('Error en auth:', error);
-        errorDiv.textContent = error.message;
+        handleAuthError(error, errorDiv);
     }
 };
 
@@ -116,7 +164,6 @@ window.handleLogout = async function() {
 window.showChangeUsername = function() {
     const modal = document.getElementById('usernameModal');
     if (modal) {
-        // Forzar textos correctos antes de mostrar
         enforceCorrectTexts();
         modal.style.display = 'block';
     }
@@ -201,5 +248,13 @@ onChildAdded(messagesRef, (snapshot) => {
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 });
 
-// Llamar a enforceCorrectTexts periódicamente
-setInterval(enforceCorrectTexts, 1000);
+// Llamar a enforceCorrectTexts más frecuentemente al inicio
+document.addEventListener('DOMContentLoaded', () => {
+    enforceCorrectTexts();
+    // Llamar varias veces en los primeros segundos
+    for (let i = 1; i <= 5; i++) {
+        setTimeout(enforceCorrectTexts, i * 1000);
+    }
+    // Después, llamar periódicamente
+    setInterval(enforceCorrectTexts, 2000);
+});

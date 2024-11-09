@@ -21,16 +21,20 @@
         </div>
     </div>
 
-    <div id="usernameModal" class="modal" style="display: none;">
+    <div id="usernameModal" class="modal notranslate" translate="no" style="display: none;">
         <div class="modal-content">
-            <h3>Cambiar nombre de usuario</h3>
+            <h3 translate="no">Cambiar nombre de usuario</h3>
             <input 
                 type="text" 
                 id="usernameInput" 
                 placeholder="Escribe tu nombre de usuario"
                 maxlength="20"
+                translate="no"
+                class="notranslate"
             >
-            <button onclick="saveUsername()">Guardar nombre</button>
+            <button onclick="saveUsername()" translate="no" class="notranslate">
+                Guardar nombre
+            </button>
         </div>
     </div>
 
