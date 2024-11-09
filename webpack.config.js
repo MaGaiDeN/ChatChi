@@ -1,13 +1,15 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
 module.exports = {
     entry: './src/index.js',
     output: {
         path: path.resolve(__dirname, 'dist'),
         filename: 'bundle.js',
-        clean: true
+        clean: true,
+        publicPath: '/ChatChi/'
     },
     plugins: [
         new HtmlWebpackPlugin({
@@ -16,17 +18,24 @@ module.exports = {
         new CopyWebpackPlugin({
             patterns: [
                 { 
-                    from: path.resolve(__dirname, 'images'),
-                    to: path.resolve(__dirname, 'dist/images')
+                    from: 'images',
+                    to: 'images',
+                    noErrorOnMissing: true
                 }
             ]
+        }),
+        new MiniCssExtractPlugin({
+            filename: 'styles.css'
         })
     ],
     module: {
         rules: [
             {
                 test: /\.css$/,
-                use: ['style-loader', 'css-loader']
+                use: [
+                    MiniCssExtractPlugin.loader,
+                    'css-loader'
+                ]
             }
         ]
     }
