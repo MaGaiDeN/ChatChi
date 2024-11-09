@@ -55,6 +55,7 @@ window.handleEmailAuth = async (type) => {
         }
         errorDiv.textContent = '';
     } catch (error) {
+        console.error('Error en auth:', error);
         errorDiv.textContent = error.message;
     }
 };
@@ -65,6 +66,7 @@ window.handleGoogleAuth = async () => {
         await loginWithGoogle();
         errorDiv.textContent = '';
     } catch (error) {
+        console.error('Error en login con Google:', error);
         errorDiv.textContent = error.message;
     }
 };
@@ -73,7 +75,8 @@ window.handleLogout = async () => {
     try {
         await logoutUser();
     } catch (error) {
-        console.error('Error al cerrar sesión:', error);
+        console.error('Error en logout:', error);
+        alert('Error al cerrar sesión');
     }
 };
 
