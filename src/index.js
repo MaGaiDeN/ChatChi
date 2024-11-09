@@ -1,5 +1,13 @@
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, push, onChildAdded, onValue } from 'firebase/database';
+import { getDatabase, ref, push, onChildAdded } from 'firebase/database';
+import { 
+    initAuthStateListener, 
+    loginWithEmail, 
+    registerWithEmail, 
+    loginWithGoogle, 
+    logoutUser,
+    auth 
+} from './auth.js';
 import './styles.css';
 
 const firebaseConfig = {
@@ -18,69 +26,76 @@ const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 const messagesRef = ref(database, 'messages');
 
-// Función para verificar la conexión
-function testConnection() {
-    const connectedRef = ref(database, '.info/connected');
-    onValue(connectedRef, (snap) => {
-        if (snap.val() === true) {
-            console.log('✅ Conectado a Firebase');
-        } else {
-            console.log('❌ Desconectado de Firebase');
-        }
-    });
-}
-
-// Función para probar escritura
-async function testWrite() {
-    try {
-        const testRef = ref(database, 'test');
-        await push(testRef, {
-            mensaje: "Prueba de escritura",
-            timestamp: Date.now()
-        });
-        console.log('✅ Prueba de escritura exitosa');
-    } catch (error) {
-        console.error('❌ Error en prueba de escritura:', error);
+// Manejar el estado de autenticación
+initAuthStateListener(
+    (user) => {
+        // Usuario autenticado
+        document.getElementById('authContainer').style.display = 'none';
+        document.getElementById('chatContainer').style.display = 'block';
+        document.getElementById('userEmail').textContent = user.email;
+    },
+    () => {
+        // Usuario no autenticado
+        document.getElementById('authContainer').style.display = 'flex';
+        document.getElementById('chatContainer').style.display = 'none';
     }
-}
+);
 
-// Función para probar lectura
-function testRead() {
-    const messagesRef = ref(database, 'messages');
-    onValue(messagesRef, (snapshot) => {
-        const data = snapshot.val();
-        console.log('📖 Datos actuales en messages:', data);
-    }, (error) => {
-        console.error('❌ Error en lectura:', error);
-    });
-}
+// Funciones de autenticación para el HTML
+window.handleEmailAuth = async (type) => {
+    const email = document.getElementById('emailInput').value;
+    const password = document.getElementById('passwordInput').value;
+    const errorDiv = document.getElementById('loginError');
 
-// Ejecutar pruebas al cargar
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 Iniciando pruebas de Firebase...');
-    testConnection();
-    testWrite();
-    testRead();
-});
+    try {
+        if (type === 'login') {
+            await loginWithEmail(email, password);
+        } else {
+            await registerWithEmail(email, password);
+        }
+        errorDiv.textContent = '';
+    } catch (error) {
+        errorDiv.textContent = error.message;
+    }
+};
+
+window.handleGoogleAuth = async () => {
+    const errorDiv = document.getElementById('loginError');
+    try {
+        await loginWithGoogle();
+        errorDiv.textContent = '';
+    } catch (error) {
+        errorDiv.textContent = error.message;
+    }
+};
+
+window.handleLogout = async () => {
+    try {
+        await logoutUser();
+    } catch (error) {
+        console.error('Error al cerrar sesión:', error);
+    }
+};
 
 // Función para enviar mensajes
 window.sendMessage = async function() {
     const messageInput = document.getElementById('messageInput');
     const message = messageInput.value;
     
-    if (message.trim() !== '') {
+    if (message.trim() !== '' && auth.currentUser) {
         try {
             await push(messagesRef, {
                 text: message,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                userId: auth.currentUser.uid,
+                userEmail: auth.currentUser.email
             });
-            console.log('✅ Mensaje enviado correctamente');
             messageInput.value = '';
         } catch (error) {
-            console.error('❌ Error al enviar mensaje:', error);
+            console.error('Error al enviar mensaje:', error);
         }
     }
-}
+};
 
 // Escuchar nuevos mensajes
 onChildAdded(messagesRef, (snapshot) => {
@@ -89,7 +104,7 @@ onChildAdded(messagesRef, (snapshot) => {
     
     const messageElement = document.createElement('div');
     messageElement.className = 'message';
-    messageElement.textContent = message.text;
+    messageElement.textContent = `${message.userEmail}: ${message.text}`;
     
     messagesDiv.appendChild(messageElement);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
