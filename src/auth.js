@@ -8,6 +8,7 @@ import {
     onAuthStateChanged 
 } from 'firebase/auth';
 
+// Obtener la instancia de auth después de que Firebase se haya inicializado
 const auth = getAuth();
 const googleProvider = new GoogleAuthProvider();
 

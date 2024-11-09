@@ -12,15 +12,15 @@ module.exports = {
     module: {
         rules: [
             {
+                test: /\.css$/,
+                use: ['style-loader', 'css-loader']
+            },
+            {
                 test: /\.js$/,
                 exclude: /node_modules/,
                 use: {
-                    loader: 'babel-loader',
+                    loader: 'babel-loader'
                 }
-            },
-            {
-                test: /\.css$/,
-                use: ['style-loader', 'css-loader']
             }
         ]
     },
@@ -28,9 +28,5 @@ module.exports = {
         new HtmlWebpackPlugin({
             template: './src/index.html'
         })
-    ],
-    devServer: {
-        static: './dist',
-        hot: true
-    }
+    ]
 }; 

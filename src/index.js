@@ -1,3 +1,4 @@
+import './styles.css';
 import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, push, onChildAdded } from 'firebase/database';
 import { 
@@ -7,9 +8,9 @@ import {
     loginWithGoogle, 
     logoutUser,
     auth 
-} from './auth.js';
-import './styles.css';
+} from './auth';
 
+// Configuración de Firebase - debe ir ANTES de cualquier otra operación de Firebase
 const firebaseConfig = {
     apiKey: "AIzaSyAwbEWJn6_lK-gV33tUCEW_-AoZgY2iPk4",
     authDomain: "chatchi-b31b4.firebaseapp.com",
@@ -26,22 +27,18 @@ const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 const messagesRef = ref(database, 'messages');
 
-// Manejar el estado de autenticación
-initAuthStateListener(
-    (user) => {
-        // Usuario autenticado
-        document.getElementById('authContainer').style.display = 'none';
-        document.getElementById('chatContainer').style.display = 'block';
-        document.getElementById('userEmail').textContent = user.email;
-    },
-    () => {
-        // Usuario no autenticado
-        document.getElementById('authContainer').style.display = 'flex';
-        document.getElementById('chatContainer').style.display = 'none';
+// Funciones globales para el HTML
+window.handleGoogleAuth = async () => {
+    const errorDiv = document.getElementById('loginError');
+    try {
+        await loginWithGoogle();
+        errorDiv.textContent = '';
+    } catch (error) {
+        console.error('Error en login con Google:', error);
+        errorDiv.textContent = error.message;
     }
-);
+};
 
-// Funciones de autenticación para el HTML
 window.handleEmailAuth = async (type) => {
     const email = document.getElementById('emailInput').value;
     const password = document.getElementById('passwordInput').value;
@@ -60,17 +57,6 @@ window.handleEmailAuth = async (type) => {
     }
 };
 
-window.handleGoogleAuth = async () => {
-    const errorDiv = document.getElementById('loginError');
-    try {
-        await loginWithGoogle();
-        errorDiv.textContent = '';
-    } catch (error) {
-        console.error('Error en login con Google:', error);
-        errorDiv.textContent = error.message;
-    }
-};
-
 window.handleLogout = async () => {
     try {
         await logoutUser();
@@ -80,7 +66,6 @@ window.handleLogout = async () => {
     }
 };
 
-// Función para enviar mensajes
 window.sendMessage = async function() {
     const messageInput = document.getElementById('messageInput');
     const message = messageInput.value;
@@ -99,6 +84,19 @@ window.sendMessage = async function() {
         }
     }
 };
+
+// Inicializar el listener de autenticación
+initAuthStateListener(
+    (user) => {
+        document.getElementById('authContainer').style.display = 'none';
+        document.getElementById('chatContainer').style.display = 'block';
+        document.getElementById('userEmail').textContent = user.email;
+    },
+    () => {
+        document.getElementById('authContainer').style.display = 'flex';
+        document.getElementById('chatContainer').style.display = 'none';
+    }
+);
 
 // Escuchar nuevos mensajes
 onChildAdded(messagesRef, (snapshot) => {
