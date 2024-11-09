@@ -126,7 +126,83 @@ window.saveUsername = async () => {
     }
 };
 
-// ... resto del código existente ...
+// Funciones de autenticación
+window.handleGoogleAuth = async () => {
+    const errorDiv = document.getElementById('loginError');
+    try {
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({
+            prompt: 'select_account'
+        });
+        
+        const result = await signInWithPopup(auth, provider);
+        console.log('Login exitoso:', result.user.email);
+        errorDiv.textContent = '';
+    } catch (error) {
+        console.error('Error en login con Google:', error);
+        if (error.code === 'auth/popup-closed-by-user') {
+            errorDiv.textContent = 'Inicio de sesión cancelado';
+        } else {
+            errorDiv.textContent = 'Error al iniciar sesión con Google';
+        }
+    }
+};
+
+window.handleEmailAuth = async (type) => {
+    const email = document.getElementById('emailInput').value;
+    const password = document.getElementById('passwordInput').value;
+    const errorDiv = document.getElementById('loginError');
+
+    try {
+        if (type === 'login') {
+            await signInWithEmailAndPassword(auth, email, password);
+        } else {
+            await createUserWithEmailAndPassword(auth, email, password);
+        }
+        errorDiv.textContent = '';
+    } catch (error) {
+        console.error('Error en auth:', error);
+        errorDiv.textContent = error.message;
+    }
+};
+
+window.handleLogout = async () => {
+    try {
+        await signOut(auth);
+        // Limpiar UI
+        document.getElementById('messages').innerHTML = '';
+        document.getElementById('usersList').innerHTML = '';
+        document.getElementById('userCount').textContent = '0';
+    } catch (error) {
+        console.error('Error en logout:', error);
+        alert('Error al cerrar sesión');
+    }
+};
+
+// Función para enviar mensajes
+window.sendMessage = async function() {
+    const messageInput = document.getElementById('messageInput');
+    const message = messageInput.value.trim();
+    
+    if (message && auth.currentUser) {
+        try {
+            const userRef = ref(database, `users/${auth.currentUser.uid}`);
+            const userSnapshot = await get(userRef);
+            const username = userSnapshot.exists() ? userSnapshot.val().username : 'Anónimo';
+            
+            await push(messagesRef, {
+                text: message,
+                timestamp: Date.now(),
+                userId: auth.currentUser.uid,
+                username: username,
+                userEmail: auth.currentUser.email
+            });
+            messageInput.value = '';
+        } catch (error) {
+            console.error('Error al enviar mensaje:', error);
+        }
+    }
+};
 
 // Listeners
 onValue(presenceRef, (snapshot) => {
@@ -142,3 +218,16 @@ onAuthStateChanged(auth, async (user) => {
 
 // Llamar a enforceCorrectTexts periódicamente
 setInterval(enforceCorrectTexts, 1000);
+
+// Escuchar nuevos mensajes
+onChildAdded(messagesRef, (snapshot) => {
+    const message = snapshot.val();
+    const messagesDiv = document.getElementById('messages');
+    
+    const messageElement = document.createElement('div');
+    messageElement.className = 'message';
+    messageElement.textContent = `${message.username || 'Anónimo'}: ${message.text}`;
+    
+    messagesDiv.appendChild(messageElement);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+});
