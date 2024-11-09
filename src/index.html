@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
+    <meta charset="UTF-8">
     <title>ChatChi - Chat en Tiempo Real</title>
 </head>
 <body>
@@ -22,14 +23,14 @@
 
     <div id="usernameModal" class="modal" style="display: none;">
         <div class="modal-content">
-            <h3>Elige tu nombre de usuario</h3>
+            <h3>Nombre de Usuario</h3>
             <input 
                 type="text" 
                 id="usernameInput" 
                 placeholder="Escribe tu nombre de usuario"
                 maxlength="20"
             >
-            <button onclick="saveUsername()">Guardar</button>
+            <button onclick="saveUsername()">Guardar nombre</button>
         </div>
     </div>
 
@@ -40,10 +41,10 @@
                 <span id="userEmail" class="user-email"></span>
             </div>
             <div class="user-actions">
-                <button onclick="showChangeUsername()" class="change-name-btn">
+                <button type="button" onclick="showChangeUsername()" class="change-name-btn">
                     Cambiar nombre de usuario
                 </button>
-                <button onclick="handleLogout()" class="logout-btn">
+                <button type="button" onclick="handleLogout()" class="logout-btn">
                     Cerrar Sesión
                 </button>
             </div>

@@ -182,9 +182,15 @@ onChildAdded(messagesRef, (snapshot) => {
 // Mostrar modal de nombre de usuario
 window.showChangeUsername = () => {
     const modal = document.getElementById('usernameModal');
-    if (modal) {
-        modal.style.display = 'block';
-    }
+    const modalTitle = modal.querySelector('h3');
+    const input = document.getElementById('usernameInput');
+    const button = modal.querySelector('button');
+    
+    modalTitle.textContent = 'Cambiar nombre de usuario';
+    input.placeholder = 'Escribe tu nuevo nombre de usuario';
+    button.textContent = 'Guardar nombre';
+    
+    modal.style.display = 'block';
 };
 
 // Guardar nombre de usuario
@@ -203,19 +209,15 @@ window.saveUsername = async () => {
             
             // Actualizar UI
             const usernameSpan = document.getElementById('username');
-            if (usernameSpan) {
-                usernameSpan.textContent = username;
-            }
+            usernameSpan.textContent = username;
             
-            // Limpiar y cerrar modal
-            if (modal) {
-                modal.style.display = 'none';
-            }
+            // Cerrar modal y limpiar
+            modal.style.display = 'none';
             usernameInput.value = '';
             
-            console.log('Nombre de usuario guardado:', username);
+            console.log('Nombre de usuario actualizado:', username);
         } catch (error) {
-            console.error('Error al guardar username:', error);
+            console.error('Error al guardar nombre de usuario:', error);
             alert('Error al guardar el nombre de usuario');
         }
     }
