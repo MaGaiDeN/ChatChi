@@ -191,43 +191,66 @@ function updateUsersList(snapshot) {
     userCount.textContent = users.length.toString();
 }
 
-// IMPORTANTE: Definir las funciones globales antes de que se cargue el HTML
+// Configurar el proveedor de Google
+const provider = new GoogleAuthProvider();
+provider.addScope('email');
+provider.addScope('profile');
+
+// Función mejorada de autenticación con Google
 window.handleGoogleAuth = async function() {
     const errorDiv = document.getElementById('loginError');
     try {
-        const provider = new GoogleAuthProvider();
+        const auth = getAuth();
+        
+        // Configurar el proveedor
         provider.setCustomParameters({
             prompt: 'select_account',
-            // Agregar el dominio de redirección correcto
+            login_hint: 'user@example.com',
+            // Asegurarse de que coincida con el dominio de GitHub Pages
             redirect_uri: 'https://magaiden.github.io/ChatChi/'
         });
-        
-        // Usar signInWithRedirect
+
+        // Intentar la redirección
         await signInWithRedirect(auth, provider);
-        
-        // Manejar el resultado de la redirección
-        const result = await getRedirectResult(auth);
-        if (result) {
-            console.log('Login exitoso:', result.user.email);
-            errorDiv.textContent = '';
-        }
     } catch (error) {
-        console.error('Error en login con Google:', error);
-        errorDiv.textContent = 'Error al iniciar sesión con Google';
+        console.error('Error iniciando auth:', error);
+        errorDiv.textContent = 'Error al iniciar el proceso de login';
     }
 };
 
-// Agregar el manejador de redirección
-getRedirectResult(auth)
-    .then((result) => {
+// Manejar el resultado de la redirección
+document.addEventListener('DOMContentLoaded', async () => {
+    const auth = getAuth();
+    try {
+        const result = await getRedirectResult(auth);
         if (result) {
-            console.log('Login exitoso después de redirección:', result.user.email);
+            // Login exitoso
+            console.log('Usuario autenticado:', result.user.email);
+            // No necesitamos hacer nada más aquí, onAuthStateChanged se encargará
         }
-    })
-    .catch((error) => {
-        console.error('Error después de redirección:', error);
-        document.getElementById('loginError').textContent = 'Error al iniciar sesión con Google';
-    });
+    } catch (error) {
+        console.error('Error en redirección:', error);
+        const errorDiv = document.getElementById('loginError');
+        if (errorDiv) {
+            switch (error.code) {
+                case 'auth/account-exists-with-different-credential':
+                    errorDiv.textContent = 'Ya existe una cuenta con este email';
+                    break;
+                case 'auth/popup-closed-by-user':
+                    errorDiv.textContent = 'Proceso de login cancelado';
+                    break;
+                case 'auth/cancelled-popup-request':
+                    errorDiv.textContent = 'Solo se permite una ventana de login';
+                    break;
+                case 'auth/popup-blocked':
+                    errorDiv.textContent = 'El navegador bloqueó la ventana de login';
+                    break;
+                default:
+                    errorDiv.textContent = 'Error en el proceso de login';
+            }
+        }
+    }
+});
 
 window.handleEmailAuth = async function(type) {
     const email = document.getElementById('emailInput').value.trim();
