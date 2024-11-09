@@ -108,28 +108,30 @@ window.sendMessage = async function() {
 
 // Listener de estado de autenticación
 onAuthStateChanged(auth, async (user) => {
-    const authContainer = document.getElementById('authContainer');
-    const chatContainer = document.getElementById('chatContainer');
-    const userEmail = document.getElementById('userEmail');
-    const usernameSpan = document.getElementById('username');
-
     if (user) {
-        // Obtener nombre de usuario existente
-        const username = await getUsernameFromDb(user.uid);
-        
-        if (!username) {
-            // Primer login - mostrar modal
-            document.getElementById('usernameModal').style.display = 'block';
-        } else {
-            usernameSpan.textContent = username;
-        }
+        try {
+            // Obtener nombre de usuario existente
+            const userRef = ref(database, `users/${user.uid}`);
+            const snapshot = await get(userRef);
+            const username = snapshot.exists() ? snapshot.val().username : null;
 
-        authContainer.style.display = 'none';
-        chatContainer.style.display = 'block';
-        userEmail.textContent = user.email;
+            // Actualizar UI
+            document.getElementById('authContainer').style.display = 'none';
+            document.getElementById('chatContainer').style.display = 'block';
+            document.getElementById('userEmail').textContent = user.email;
+            
+            if (username) {
+                document.getElementById('username').textContent = username;
+            } else {
+                // Mostrar modal para nuevo usuario
+                document.getElementById('usernameModal').style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Error al cargar datos de usuario:', error);
+        }
     } else {
-        authContainer.style.display = 'flex';
-        chatContainer.style.display = 'none';
+        document.getElementById('authContainer').style.display = 'flex';
+        document.getElementById('chatContainer').style.display = 'none';
     }
 });
 
@@ -148,20 +150,50 @@ onChildAdded(messagesRef, (snapshot) => {
 
 // Mostrar modal de nombre de usuario
 window.showChangeUsername = () => {
-    document.getElementById('usernameModal').style.display = 'block';
+    const modal = document.getElementById('usernameModal');
+    if (modal) {
+        modal.style.display = 'block';
+    }
 };
 
 // Guardar nombre de usuario
 window.saveUsername = async () => {
-    const username = document.getElementById('usernameInput').value.trim();
+    const usernameInput = document.getElementById('usernameInput');
+    const modal = document.getElementById('usernameModal');
+    const username = usernameInput.value.trim();
+
     if (username && auth.currentUser) {
         try {
-            await saveUsernameToDb(auth.currentUser.uid, username);
-            document.getElementById('username').textContent = username;
-            document.getElementById('usernameModal').style.display = 'none';
-            document.getElementById('usernameInput').value = '';
+            const userRef = ref(database, `users/${auth.currentUser.uid}`);
+            await set(userRef, {
+                username: username,
+                lastUpdated: Date.now()
+            });
+            
+            // Actualizar UI
+            const usernameSpan = document.getElementById('username');
+            if (usernameSpan) {
+                usernameSpan.textContent = username;
+            }
+            
+            // Limpiar y cerrar modal
+            if (modal) {
+                modal.style.display = 'none';
+            }
+            usernameInput.value = '';
+            
+            console.log('Nombre de usuario guardado:', username);
         } catch (error) {
             console.error('Error al guardar username:', error);
+            alert('Error al guardar el nombre de usuario');
         }
+    }
+};
+
+// Agregar función para cerrar el modal si se hace clic fuera
+window.onclick = function(event) {
+    const modal = document.getElementById('usernameModal');
+    if (event.target === modal) {
+        modal.style.display = 'none';
     }
 }; 
