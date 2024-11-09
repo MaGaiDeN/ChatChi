@@ -209,44 +209,36 @@ function logError(error, context) {
     });
 }
 
-// Función de autenticación con Google actualizada
+// Función mejorada de autenticación con Google
 window.handleGoogleAuth = async function() {
-    console.log('1. Iniciando autenticación con Google');
+    console.log('1. Iniciando proceso de autenticación con Google');
     const errorDiv = document.getElementById('loginError');
     
     try {
         const provider = new GoogleAuthProvider();
-        console.log('2. Configurando proveedor');
+        provider.addScope('email');
+        provider.addScope('profile');
         
-        // Configuración específica para GitHub Pages
-        const redirectUrl = 'https://magaiden.github.io/ChatChi/';
-        
-        provider.setCustomParameters({
-            prompt: 'select_account',
-            redirect_uri: redirectUrl
-        });
-        
-        console.log('3. Parámetros configurados:', {
-            redirect_uri: redirectUrl
-        });
-
         // Usar signInWithPopup en lugar de redirect
-        console.log('4. Intentando signInWithPopup');
+        console.log('2. Intentando autenticación con popup');
         const result = await signInWithPopup(auth, provider);
         
-        console.log('5. Login exitoso:', {
-            user: result.user.email,
-            providerId: result.providerId
+        console.log('3. Autenticación exitosa:', {
+            email: result.user.email,
+            displayName: result.user.displayName
         });
         
         errorDiv.textContent = '';
     } catch (error) {
-        console.error('Error en autenticación:', error);
+        console.error('Error en autenticación:', {
+            code: error.code,
+            message: error.message
+        });
         
-        // Si falla el popup, intentar redirect
-        if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
-            console.log('6. Popup bloqueado, intentando redirect');
+        // Si falla el popup, intentar con redirect
+        if (error.code === 'auth/popup-blocked') {
             try {
+                console.log('4. Popup bloqueado, intentando con redirect');
                 await signInWithRedirect(auth, provider);
             } catch (redirectError) {
                 console.error('Error en redirect:', redirectError);
@@ -258,15 +250,58 @@ window.handleGoogleAuth = async function() {
     }
 };
 
-// Manejador de resultado de autenticación
+// Listener de autenticación mejorado
+onAuthStateChanged(auth, async (user) => {
+    console.log('Estado de autenticación cambiado:', {
+        autenticado: !!user,
+        timestamp: new Date().toISOString()
+    });
+    
+    if (user) {
+        console.log('Usuario autenticado:', {
+            email: user.email,
+            uid: user.uid,
+            displayName: user.displayName
+        });
+        
+        document.getElementById('authContainer').style.display = 'none';
+        document.getElementById('chatContainer').style.display = 'block';
+        document.getElementById('userEmail').textContent = user.email;
+        
+        try {
+            await updatePresence(user);
+            
+            const userRef = ref(database, `users/${user.uid}`);
+            const snapshot = await get(userRef);
+            
+            if (snapshot.exists()) {
+                document.getElementById('username').textContent = snapshot.val().username;
+            } else {
+                document.getElementById('usernameModal').style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Error al actualizar datos de usuario:', error);
+        }
+    } else {
+        console.log('Usuario no autenticado - Mostrando pantalla de login');
+        document.getElementById('authContainer').style.display = 'flex';
+        document.getElementById('chatContainer').style.display = 'none';
+    }
+});
+
+// Verificar resultado de redirección al cargar
 getRedirectResult(auth)
     .then((result) => {
         if (result) {
-            console.log('Redirección exitosa:', result.user.email);
+            console.log('Login por redirección exitoso:', {
+                email: result.user.email,
+                displayName: result.user.displayName
+            });
         }
     })
     .catch((error) => {
         console.error('Error en redirección:', error);
+        document.getElementById('loginError').textContent = 'Error al iniciar sesión';
     });
 
 window.handleEmailAuth = async function(type) {
@@ -403,53 +438,6 @@ async function clearPresence(userId) {
         console.error('Error al limpiar presencia:', error);
     }
 }
-
-// Listener de autenticación mejorado
-onAuthStateChanged(auth, async (user) => {
-    console.log('→ Cambio en estado de autenticación:', {
-        userPresent: user ? 'sí' : 'no',
-        timestamp: new Date().toISOString()
-    });
-    
-    if (user) {
-        console.log('✓ Usuario autenticado:', {
-            email: user.email,
-            uid: user.uid,
-            displayName: user.displayName,
-            providerId: user.providerId
-        });
-        
-        try {
-            // Actualizar UI
-            document.getElementById('authContainer').style.display = 'none';
-            document.getElementById('chatContainer').style.display = 'block';
-            document.getElementById('userEmail').textContent = user.email;
-            
-            // Actualizar presencia
-            console.log('Actualizando presencia...');
-            await updatePresence(user);
-            
-            // Verificar datos de usuario
-            const userRef = ref(database, `users/${user.uid}`);
-            const snapshot = await get(userRef);
-            
-            if (snapshot.exists()) {
-                const userData = snapshot.val();
-                console.log('Datos de usuario encontrados:', userData);
-                document.getElementById('username').textContent = userData.username;
-            } else {
-                console.log('Usuario nuevo - Mostrando modal');
-                document.getElementById('usernameModal').style.display = 'block';
-            }
-        } catch (error) {
-            logError(error, 'onAuthStateChanged');
-        }
-    } else {
-        console.log('✗ No hay usuario autenticado');
-        document.getElementById('authContainer').style.display = 'flex';
-        document.getElementById('chatContainer').style.display = 'none';
-    }
-});
 
 // Agregar listener para limpiar presencia al cerrar ventana
 window.addEventListener('beforeunload', async (event) => {
