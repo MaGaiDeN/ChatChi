@@ -1,6 +1,6 @@
 import './styles.css';
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, push, onChildAdded, set, get, onValue, onDisconnect } from 'firebase/database';
+import { getDatabase, ref, push, onChildAdded, set, get, onValue, onDisconnect, serverTimestamp } from 'firebase/database';
 import { 
     getAuth,
     signInWithEmailAndPassword, 
@@ -33,6 +33,9 @@ const googleProvider = new GoogleAuthProvider();
 // Referencia para usuarios conectados
 const connectedRef = ref(database, '.info/connected');
 const usersRef = ref(database, 'users');
+
+// Referencias de la base de datos
+const presenceRef = ref(database, 'presence');
 
 // Función para guardar el nombre de usuario en la base de datos
 async function saveUsernameToDb(uid, username) {
@@ -143,17 +146,7 @@ onAuthStateChanged(auth, async (user) => {
         }
 
         // Configurar presencia
-        onValue(connectedRef, (snap) => {
-            if (snap.val() === true) {
-                updateUserConnection(user.uid, true);
-                
-                // Desconectar cuando el usuario se va
-                onDisconnect(ref(database, `users/${user.uid}/status`)).set({
-                    online: false,
-                    lastChanged: Date.now()
-                });
-            }
-        });
+        handlePresence(user);
 
         // Escuchar cambios en la lista de usuarios
         onValue(usersRef, (snapshot) => {
@@ -182,15 +175,8 @@ onChildAdded(messagesRef, (snapshot) => {
 // Mostrar modal de nombre de usuario
 window.showChangeUsername = () => {
     const modal = document.getElementById('usernameModal');
-    const modalTitle = modal.querySelector('h3');
-    const input = document.getElementById('usernameInput');
-    const button = modal.querySelector('button');
-    
-    modalTitle.textContent = 'Cambiar nombre de usuario';
-    input.placeholder = 'Escribe tu nuevo nombre de usuario';
-    button.textContent = 'Guardar nombre';
-    
     modal.style.display = 'block';
+    enforceCorrectTexts();
 };
 
 // Guardar nombre de usuario
@@ -264,3 +250,62 @@ function updateUsersList(users) {
 
     userCount.textContent = onlineCount;
 }
+
+// Función para manejar la presencia de usuarios
+function handlePresence(user) {
+    onValue(connectedRef, (snap) => {
+        if (snap.val() === true) {
+            // Usuario conectado
+            const userPresenceRef = ref(database, `presence/${user.uid}`);
+            
+            // Establecer estado online
+            set(userPresenceRef, {
+                online: true,
+                username: user.displayName || document.getElementById('username').textContent,
+                lastSeen: serverTimestamp()
+            });
+
+            // Limpiar cuando se desconecte
+            onDisconnect(userPresenceRef).remove();
+        }
+    });
+}
+
+// Función para actualizar la lista de usuarios
+function updateUsersList(presenceData) {
+    const usersList = document.getElementById('usersList');
+    const userCount = document.getElementById('userCount');
+    usersList.innerHTML = '';
+    
+    const onlineUsers = Object.values(presenceData || {}).filter(user => user.online);
+    userCount.textContent = onlineUsers.length;
+
+    onlineUsers.forEach(userData => {
+        const userElement = document.createElement('div');
+        userElement.className = 'user-item online';
+        userElement.innerHTML = `
+            <span class="user-status"></span>
+            <span class="user-name">${userData.username || 'Anónimo'}</span>
+        `;
+        usersList.appendChild(userElement);
+    });
+}
+
+// Escuchar cambios en la presencia
+onValue(presenceRef, (snapshot) => {
+    updateUsersList(snapshot.val());
+});
+
+// Función para mantener los textos correctos
+function enforceCorrectTexts() {
+    const elements = document.querySelectorAll('[data-text]');
+    elements.forEach(element => {
+        const correctText = element.getAttribute('data-text');
+        if (element.textContent !== correctText) {
+            element.textContent = correctText;
+        }
+    });
+}
+
+// Llamar a la función periódicamente
+setInterval(enforceCorrectTexts, 1000);
