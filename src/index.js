@@ -234,18 +234,37 @@ window.handleLogout = async function() {
     try {
         const user = auth.currentUser;
         if (user) {
-            // Eliminar presencia antes de cerrar sesión
+            // Eliminar presencia usando set(null)
             const userPresenceRef = ref(database, `presence/${user.uid}`);
-            await set(userPresenceRef, null);  // Usar set(null) en lugar de remove
+            await set(userPresenceRef, null);
         }
         
         // Limpiar UI
-        document.getElementById('messages').innerHTML = '';
-        document.getElementById('usersList').innerHTML = '';
-        document.getElementById('userCount').textContent = '0';
-        
-        // Cerrar sesión
+        const elements = {
+            messages: document.getElementById('messages'),
+            usersList: document.getElementById('usersList'),
+            userCount: document.getElementById('userCount'),
+            username: document.getElementById('username'),
+            userEmail: document.getElementById('userEmail')
+        };
+
+        // Limpiar cada elemento
+        Object.values(elements).forEach(element => {
+            if (element) {
+                if (element.tagName === 'INPUT') {
+                    element.value = '';
+                } else {
+                    element.innerHTML = '';
+                }
+            }
+        });
+
+        // Cerrar sesión en Firebase
         await signOut(auth);
+        
+        // Cambiar vista
+        document.getElementById('authContainer').style.display = 'flex';
+        document.getElementById('chatContainer').style.display = 'none';
         
         console.log('Sesión cerrada correctamente');
     } catch (error) {
@@ -307,6 +326,18 @@ window.sendMessage = async function() {
     }
 };
 
+// Función para limpiar presencia
+async function clearPresence(userId) {
+    if (!userId) return;
+    try {
+        const userPresenceRef = ref(database, `presence/${userId}`);
+        await set(userPresenceRef, null);
+        console.log('Presencia eliminada para usuario:', userId);
+    } catch (error) {
+        console.error('Error al limpiar presencia:', error);
+    }
+}
+
 // Listener de autenticación mejorado
 onAuthStateChanged(auth, async (user) => {
     if (user) {
@@ -315,8 +346,10 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById('chatContainer').style.display = 'block';
         document.getElementById('userEmail').textContent = user.email;
         
+        // Actualizar presencia
         await updatePresence(user);
         
+        // Obtener nombre de usuario
         const userRef = ref(database, `users/${user.uid}`);
         const snapshot = await get(userRef);
         if (snapshot.exists()) {
@@ -325,9 +358,24 @@ onAuthStateChanged(auth, async (user) => {
             document.getElementById('usernameModal').style.display = 'block';
         }
     } else {
-        clearUserData();
+        console.log('Usuario desconectado');
         document.getElementById('authContainer').style.display = 'flex';
         document.getElementById('chatContainer').style.display = 'none';
+        
+        // Limpiar UI
+        document.getElementById('messages').innerHTML = '';
+        document.getElementById('usersList').innerHTML = '';
+        document.getElementById('userCount').textContent = '0';
+        document.getElementById('username').textContent = '';
+        document.getElementById('userEmail').textContent = '';
+    }
+});
+
+// Agregar listener para limpiar presencia al cerrar ventana
+window.addEventListener('beforeunload', async (event) => {
+    const user = auth.currentUser;
+    if (user) {
+        await clearPresence(user.uid);
     }
 });
 
