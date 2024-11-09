@@ -1,21 +1,42 @@
 import './styles.css';
-import { database, auth } from './firebase';
-import { ref, push, onChildAdded } from 'firebase/database';
+import { initializeApp } from 'firebase/app';
+import { getDatabase, ref, push, onChildAdded } from 'firebase/database';
 import { 
-    initAuthStateListener, 
-    loginWithEmail, 
-    registerWithEmail, 
-    loginWithGoogle, 
-    logoutUser 
-} from './auth';
+    getAuth,
+    signInWithEmailAndPassword, 
+    createUserWithEmailAndPassword,
+    signInWithPopup,
+    GoogleAuthProvider,
+    signOut,
+    onAuthStateChanged 
+} from 'firebase/auth';
 
+// Configuración de Firebase
+const firebaseConfig = {
+    apiKey: "AIzaSyAwbEWJn6_lK-gV33tUCEW_-AoZgY2iPk4",
+    authDomain: "chatchi-b31b4.firebaseapp.com",
+    databaseURL: "https://chatchi-b31b4-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "chatchi-b31b4",
+    storageBucket: "chatchi-b31b4.firebasestorage.app",
+    messagingSenderId: "645757510345",
+    appId: "1:645757510345:web:343b5191ecc9a15608a318",
+    measurementId: "G-MWPGW5KX5L"
+};
+
+// Inicializar Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const database = getDatabase(app);
 const messagesRef = ref(database, 'messages');
+const googleProvider = new GoogleAuthProvider();
 
-// Funciones globales para el HTML
+// Funciones de autenticación
 window.handleGoogleAuth = async () => {
     const errorDiv = document.getElementById('loginError');
     try {
-        await loginWithGoogle();
+        const provider = new GoogleAuthProvider();
+        const result = await signInWithPopup(auth, provider);
+        console.log('Login exitoso:', result.user.email);
         errorDiv.textContent = '';
     } catch (error) {
         console.error('Error en login con Google:', error);
@@ -26,30 +47,28 @@ window.handleGoogleAuth = async () => {
 window.handleEmailAuth = async (type) => {
     const email = document.getElementById('emailInput').value;
     const password = document.getElementById('passwordInput').value;
-    const errorDiv = document.getElementById('loginError');
 
     try {
         if (type === 'login') {
-            await loginWithEmail(email, password);
+            await signInWithEmailAndPassword(auth, email, password);
         } else {
-            await registerWithEmail(email, password);
+            await createUserWithEmailAndPassword(auth, email, password);
         }
-        errorDiv.textContent = '';
     } catch (error) {
         console.error('Error en auth:', error);
-        errorDiv.textContent = error.message;
+        document.getElementById('loginError').textContent = error.message;
     }
 };
 
 window.handleLogout = async () => {
     try {
-        await logoutUser();
+        await signOut(auth);
     } catch (error) {
         console.error('Error en logout:', error);
-        alert('Error al cerrar sesión');
     }
 };
 
+// Función para enviar mensajes
 window.sendMessage = async function() {
     const messageInput = document.getElementById('messageInput');
     const message = messageInput.value;
@@ -69,18 +88,21 @@ window.sendMessage = async function() {
     }
 };
 
-// Inicializar el listener de autenticación
-initAuthStateListener(
-    (user) => {
-        document.getElementById('authContainer').style.display = 'none';
-        document.getElementById('chatContainer').style.display = 'block';
-        document.getElementById('userEmail').textContent = user.email;
-    },
-    () => {
-        document.getElementById('authContainer').style.display = 'flex';
-        document.getElementById('chatContainer').style.display = 'none';
+// Listener de estado de autenticación
+onAuthStateChanged(auth, (user) => {
+    const authContainer = document.getElementById('authContainer');
+    const chatContainer = document.getElementById('chatContainer');
+    const userEmail = document.getElementById('userEmail');
+
+    if (user) {
+        authContainer.style.display = 'none';
+        chatContainer.style.display = 'block';
+        userEmail.textContent = user.email;
+    } else {
+        authContainer.style.display = 'flex';
+        chatContainer.style.display = 'none';
     }
-);
+});
 
 // Escuchar nuevos mensajes
 onChildAdded(messagesRef, (snapshot) => {
