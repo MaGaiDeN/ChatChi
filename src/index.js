@@ -200,52 +200,78 @@ function updateUsersList(snapshot) {
     userCount.textContent = users.length.toString();
 }
 
-// Configurar el proveedor de Google
-const provider = new GoogleAuthProvider();
-provider.addScope('email');
-provider.addScope('profile');
+// Función para manejar errores con logs
+function logError(error, context) {
+    console.error(`Error en ${context}:`, {
+        code: error.code,
+        message: error.message,
+        fullError: error
+    });
+}
 
-// Función de autenticación con Google con logs
+// Función de autenticación con Google mejorada
 window.handleGoogleAuth = async function() {
     const errorDiv = document.getElementById('loginError');
     console.log('1. Iniciando proceso de autenticación con Google');
     
     try {
+        // Limpiar cualquier error anterior
+        errorDiv.textContent = '';
+        
         const provider = new GoogleAuthProvider();
         console.log('2. Proveedor de Google creado');
         
+        // Configurar el proveedor
         provider.setCustomParameters({
-            prompt: 'select_account'
+            prompt: 'select_account',
+            // Asegurarnos de que la URL de redirección es correcta
+            redirect_uri: window.location.href
         });
-        console.log('3. Parámetros personalizados configurados');
+        console.log('3. Parámetros configurados:', {
+            currentUrl: window.location.href,
+            hostname: window.location.hostname
+        });
 
-        console.log('4. Intentando signInWithRedirect');
+        // Intentar la redirección
+        console.log('4. Iniciando signInWithRedirect');
         await signInWithRedirect(auth, provider);
-        console.log('5. Redirección iniciada'); // Este log probablemente no se vea por la redirección
+        
+        // Este código no se ejecutará debido a la redirección
+        console.log('5. Redirección iniciada');
     } catch (error) {
-        console.error('Error en handleGoogleAuth:', error);
+        logError(error, 'handleGoogleAuth');
         errorDiv.textContent = 'Error al iniciar sesión con Google';
     }
 };
 
-// Manejador del resultado de la redirección
+// Manejador mejorado del resultado de redirección
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('A. DOMContentLoaded - Iniciando verificación de redirección');
+    console.log('A. DOMContentLoaded - Iniciando verificación');
+    console.log('URL actual:', window.location.href);
     
     try {
-        console.log('B. Intentando obtener resultado de redirección');
-        const result = await getRedirectResult(auth);
+        console.log('B. Verificando resultado de redirección');
+        const result = await getRedirectResult(auth).catch(error => {
+            console.error('Error en getRedirectResult:', error);
+            return null;
+        });
         
         if (result) {
-            console.log('C. Resultado de redirección obtenido:', {
-                email: result.user.email,
-                uid: result.user.uid
+            console.log('C. Resultado de redirección exitoso:', {
+                user: result.user.email,
+                credential: result.credential ? 'presente' : 'ausente'
             });
+            
+            // Intentar actualizar presencia inmediatamente
+            await updatePresence(result.user);
         } else {
-            console.log('D. No hay resultado de redirección (normal en la primera carga)');
+            console.log('D. No hay resultado de redirección', {
+                authCurrentUser: auth.currentUser ? 'presente' : 'ausente',
+                location: window.location.href
+            });
         }
     } catch (error) {
-        console.error('E. Error al obtener resultado de redirección:', error);
+        logError(error, 'getRedirectResult');
     }
 });
 
@@ -386,48 +412,48 @@ async function clearPresence(userId) {
 
 // Listener de autenticación mejorado
 onAuthStateChanged(auth, async (user) => {
-    console.log('→ Estado de autenticación cambiado');
+    console.log('→ Cambio en estado de autenticación:', {
+        userPresent: user ? 'sí' : 'no',
+        timestamp: new Date().toISOString()
+    });
     
     if (user) {
         console.log('✓ Usuario autenticado:', {
             email: user.email,
             uid: user.uid,
-            displayName: user.displayName
+            displayName: user.displayName,
+            providerId: user.providerId
         });
         
-        document.getElementById('authContainer').style.display = 'none';
-        document.getElementById('chatContainer').style.display = 'block';
-        document.getElementById('userEmail').textContent = user.email;
-        
-        console.log('✓ Actualizando UI para usuario autenticado');
-        
         try {
-            console.log('✓ Iniciando actualización de presencia');
+            // Actualizar UI
+            document.getElementById('authContainer').style.display = 'none';
+            document.getElementById('chatContainer').style.display = 'block';
+            document.getElementById('userEmail').textContent = user.email;
+            
+            // Actualizar presencia
+            console.log('Actualizando presencia...');
             await updatePresence(user);
             
+            // Verificar datos de usuario
             const userRef = ref(database, `users/${user.uid}`);
             const snapshot = await get(userRef);
             
             if (snapshot.exists()) {
-                console.log('✓ Datos de usuario encontrados en la base de datos');
-                document.getElementById('username').textContent = snapshot.val().username;
+                const userData = snapshot.val();
+                console.log('Datos de usuario encontrados:', userData);
+                document.getElementById('username').textContent = userData.username;
             } else {
-                console.log('✓ Usuario nuevo - Mostrando modal de nombre de usuario');
+                console.log('Usuario nuevo - Mostrando modal');
                 document.getElementById('usernameModal').style.display = 'block';
             }
         } catch (error) {
-            console.error('✗ Error al actualizar datos de usuario:', error);
+            logError(error, 'onAuthStateChanged');
         }
     } else {
-        console.log('✗ Usuario no autenticado - Mostrando pantalla de login');
+        console.log('✗ No hay usuario autenticado');
         document.getElementById('authContainer').style.display = 'flex';
         document.getElementById('chatContainer').style.display = 'none';
-        
-        // Limpiar UI
-        ['messages', 'usersList', 'userCount', 'username', 'userEmail'].forEach(id => {
-            const element = document.getElementById(id);
-            if (element) element.textContent = '';
-        });
     }
 });
 
