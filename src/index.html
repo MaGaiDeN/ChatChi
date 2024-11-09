@@ -7,14 +7,14 @@
 <body>
     <div id="authContainer" class="auth-container">
         <div class="auth-box">
+            <img src="images/logo.png" alt="ChatChi Logo" class="auth-logo">
             <h2>Bienvenido a ChatChi</h2>
             <div id="loginError" class="error-message"></div>
-            <div class="auth-form">
-                <input type="email" id="emailInput" placeholder="Email">
-                <input type="password" id="passwordInput" placeholder="Contraseña">
-                <button onclick="window.handleEmailAuth('login')">Iniciar Sesión</button>
-                <button onclick="window.handleEmailAuth('register')">Registrarse</button>
-                <button onclick="window.handleGoogleAuth()" class="google-btn">
+            <div class="auth-buttons">
+                <button 
+                    onclick="handleGoogleAuth()" 
+                    class="google-btn"
+                    type="button">
                     Continuar con Google
                 </button>
             </div>

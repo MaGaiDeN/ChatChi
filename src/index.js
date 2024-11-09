@@ -25,13 +25,13 @@ import {
     getRedirectResult
 } from 'firebase/auth';
 
-// Configuración de Firebase
+// Configuración mejorada de Firebase
 const firebaseConfig = {
     apiKey: "AIzaSyAwbEWJn6_lK-gV33tUCEW_-AoZgY2iPk4",
     authDomain: "chatchi-b31b4.firebaseapp.com",
     databaseURL: "https://chatchi-b31b4-default-rtdb.europe-west1.firebasedatabase.app",
     projectId: "chatchi-b31b4",
-    storageBucket: "chatchi-b31b4.firebasestorage.app",
+    storageBucket: "chatchi-b31b4.appspot.com",
     messagingSenderId: "645757510345",
     appId: "1:645757510345:web:343b5191ecc9a15608a318",
     measurementId: "G-MWPGW5KX5L"
@@ -209,71 +209,65 @@ function logError(error, context) {
     });
 }
 
-// Función de autenticación con Google mejorada
+// Función de autenticación con Google actualizada
 window.handleGoogleAuth = async function() {
+    console.log('1. Iniciando autenticación con Google');
     const errorDiv = document.getElementById('loginError');
-    console.log('1. Iniciando proceso de autenticación con Google');
     
     try {
-        // Limpiar cualquier error anterior
-        errorDiv.textContent = '';
-        
         const provider = new GoogleAuthProvider();
-        console.log('2. Proveedor de Google creado');
+        console.log('2. Configurando proveedor');
         
-        // Configurar el proveedor
+        // Configuración específica para GitHub Pages
+        const redirectUrl = 'https://magaiden.github.io/ChatChi/';
+        
         provider.setCustomParameters({
             prompt: 'select_account',
-            // Asegurarnos de que la URL de redirección es correcta
-            redirect_uri: window.location.href
+            redirect_uri: redirectUrl
         });
+        
         console.log('3. Parámetros configurados:', {
-            currentUrl: window.location.href,
-            hostname: window.location.hostname
+            redirect_uri: redirectUrl
         });
 
-        // Intentar la redirección
-        console.log('4. Iniciando signInWithRedirect');
-        await signInWithRedirect(auth, provider);
+        // Usar signInWithPopup en lugar de redirect
+        console.log('4. Intentando signInWithPopup');
+        const result = await signInWithPopup(auth, provider);
         
-        // Este código no se ejecutará debido a la redirección
-        console.log('5. Redirección iniciada');
+        console.log('5. Login exitoso:', {
+            user: result.user.email,
+            providerId: result.providerId
+        });
+        
+        errorDiv.textContent = '';
     } catch (error) {
-        logError(error, 'handleGoogleAuth');
-        errorDiv.textContent = 'Error al iniciar sesión con Google';
+        console.error('Error en autenticación:', error);
+        
+        // Si falla el popup, intentar redirect
+        if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
+            console.log('6. Popup bloqueado, intentando redirect');
+            try {
+                await signInWithRedirect(auth, provider);
+            } catch (redirectError) {
+                console.error('Error en redirect:', redirectError);
+                errorDiv.textContent = 'Error al iniciar sesión con Google';
+            }
+        } else {
+            errorDiv.textContent = 'Error al iniciar sesión con Google';
+        }
     }
 };
 
-// Manejador mejorado del resultado de redirección
-document.addEventListener('DOMContentLoaded', async () => {
-    console.log('A. DOMContentLoaded - Iniciando verificación');
-    console.log('URL actual:', window.location.href);
-    
-    try {
-        console.log('B. Verificando resultado de redirección');
-        const result = await getRedirectResult(auth).catch(error => {
-            console.error('Error en getRedirectResult:', error);
-            return null;
-        });
-        
+// Manejador de resultado de autenticación
+getRedirectResult(auth)
+    .then((result) => {
         if (result) {
-            console.log('C. Resultado de redirección exitoso:', {
-                user: result.user.email,
-                credential: result.credential ? 'presente' : 'ausente'
-            });
-            
-            // Intentar actualizar presencia inmediatamente
-            await updatePresence(result.user);
-        } else {
-            console.log('D. No hay resultado de redirección', {
-                authCurrentUser: auth.currentUser ? 'presente' : 'ausente',
-                location: window.location.href
-            });
+            console.log('Redirección exitosa:', result.user.email);
         }
-    } catch (error) {
-        logError(error, 'getRedirectResult');
-    }
-});
+    })
+    .catch((error) => {
+        console.error('Error en redirección:', error);
+    });
 
 window.handleEmailAuth = async function(type) {
     const email = document.getElementById('emailInput').value.trim();
