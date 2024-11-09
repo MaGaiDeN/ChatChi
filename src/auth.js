@@ -1,5 +1,4 @@
 import { 
-    getAuth, 
     signInWithEmailAndPassword, 
     createUserWithEmailAndPassword,
     signInWithPopup,
@@ -7,12 +6,10 @@ import {
     signOut,
     onAuthStateChanged 
 } from 'firebase/auth';
+import { auth } from './firebase';
 
-// Obtener la instancia de auth después de que Firebase se haya inicializado
-const auth = getAuth();
 const googleProvider = new GoogleAuthProvider();
 
-// Función para manejar el estado de autenticación
 export const initAuthStateListener = (onLogin, onLogout) => {
     onAuthStateChanged(auth, (user) => {
         if (user) {

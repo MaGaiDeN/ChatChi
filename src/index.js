@@ -1,30 +1,14 @@
 import './styles.css';
-import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, push, onChildAdded } from 'firebase/database';
+import { database, auth } from './firebase';
+import { ref, push, onChildAdded } from 'firebase/database';
 import { 
     initAuthStateListener, 
     loginWithEmail, 
     registerWithEmail, 
     loginWithGoogle, 
-    logoutUser,
-    auth 
+    logoutUser 
 } from './auth';
 
-// Configuración de Firebase - debe ir ANTES de cualquier otra operación de Firebase
-const firebaseConfig = {
-    apiKey: "AIzaSyAwbEWJn6_lK-gV33tUCEW_-AoZgY2iPk4",
-    authDomain: "chatchi-b31b4.firebaseapp.com",
-    databaseURL: "https://chatchi-b31b4-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "chatchi-b31b4",
-    storageBucket: "chatchi-b31b4.firebasestorage.app",
-    messagingSenderId: "645757510345",
-    appId: "1:645757510345:web:343b5191ecc9a15608a318",
-    measurementId: "G-MWPGW5KX5L"
-};
-
-// Inicializar Firebase
-const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
 const messagesRef = ref(database, 'messages');
 
 // Funciones globales para el HTML
