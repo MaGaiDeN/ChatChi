@@ -18,7 +18,9 @@ import {
     signInWithPopup,
     GoogleAuthProvider,
     signOut,
-    onAuthStateChanged 
+    onAuthStateChanged,
+    signInWithRedirect,
+    remove
 } from 'firebase/auth';
 
 // Configuración de Firebase
@@ -38,6 +40,10 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const database = getDatabase(app);
 const messagesRef = ref(database, 'messages');
+
+// Referencias de Firebase para presencia
+const presenceRef = ref(database, 'presence');
+const connectedRef = ref(database, '.info/connected');
 
 // Función mejorada para validar email
 function isValidEmail(email) {
@@ -99,29 +105,78 @@ function enforceCorrectTexts() {
     }
 }
 
+// Función para manejar la presencia de usuarios
+function handlePresence(user) {
+    const userPresenceRef = ref(database, `presence/${user.uid}`);
+    
+    onValue(connectedRef, (snap) => {
+        if (snap.val() === true) {
+            // Usuario conectado
+            const userStatus = {
+                online: true,
+                lastSeen: serverTimestamp(),
+                email: user.email
+            };
+
+            // Obtener el nombre de usuario si existe
+            const userRef = ref(database, `users/${user.uid}`);
+            get(userRef).then((snapshot) => {
+                if (snapshot.exists()) {
+                    userStatus.username = snapshot.val().username;
+                }
+                
+                // Establecer presencia
+                set(userPresenceRef, userStatus);
+                
+                // Limpiar cuando se desconecte
+                onDisconnect(userPresenceRef).remove();
+            });
+        }
+    });
+}
+
+// Función para actualizar la lista de usuarios
+function updateUsersList(presenceSnapshot) {
+    const usersList = document.getElementById('usersList');
+    const userCount = document.getElementById('userCount');
+    
+    if (!usersList || !userCount) return;
+    
+    usersList.innerHTML = '';
+    let onlineUsers = [];
+    
+    presenceSnapshot.forEach((childSnapshot) => {
+        const userData = childSnapshot.val();
+        if (userData.online) {
+            onlineUsers.push(userData);
+            
+            const userElement = document.createElement('div');
+            userElement.className = 'user-item online';
+            userElement.innerHTML = `
+                <span class="user-status"></span>
+                <span class="user-name">${userData.username || userData.email || 'Anónimo'}</span>
+            `;
+            usersList.appendChild(userElement);
+        }
+    });
+    
+    userCount.textContent = onlineUsers.length;
+}
+
 // IMPORTANTE: Definir las funciones globales antes de que se cargue el HTML
 window.handleGoogleAuth = async function() {
     const errorDiv = document.getElementById('loginError');
     try {
         const provider = new GoogleAuthProvider();
-        // Configurar el proveedor para manejar mejor el popup
         provider.setCustomParameters({
-            prompt: 'select_account',
-            display: 'popup'
+            prompt: 'select_account'
         });
         
-        const result = await signInWithPopup(auth, provider);
-        console.log('Login exitoso:', result.user.email);
-        errorDiv.textContent = '';
+        // Usar signInWithRedirect en lugar de signInWithPopup
+        await signInWithRedirect(auth, provider);
     } catch (error) {
         console.error('Error en login con Google:', error);
-        if (error.code === 'auth/popup-closed-by-user') {
-            errorDiv.textContent = 'Ventana de inicio de sesión cerrada';
-        } else if (error.code === 'auth/cancelled-popup-request') {
-            errorDiv.textContent = 'Operación cancelada';
-        } else {
-            errorDiv.textContent = 'Error al iniciar sesión con Google';
-        }
+        errorDiv.textContent = 'Error al iniciar sesión con Google';
     }
 };
 
@@ -154,6 +209,11 @@ window.handleEmailAuth = async function(type) {
 
 window.handleLogout = async function() {
     try {
+        const user = auth.currentUser;
+        if (user) {
+            const userPresenceRef = ref(database, `presence/${user.uid}`);
+            await remove(userPresenceRef);
+        }
         await signOut(auth);
     } catch (error) {
         console.error('Error en logout:', error);
@@ -218,17 +278,20 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById('chatContainer').style.display = 'block';
         document.getElementById('userEmail').textContent = user.email;
         
-        // Forzar textos correctos
-        enforceCorrectTexts();
+        // Iniciar manejo de presencia
+        handlePresence(user);
         
+        // Obtener nombre de usuario
         const userRef = ref(database, `users/${user.uid}`);
         const snapshot = await get(userRef);
         if (snapshot.exists()) {
             document.getElementById('username').textContent = snapshot.val().username;
         } else {
             document.getElementById('usernameModal').style.display = 'block';
-            enforceCorrectTexts();
         }
+        
+        // Forzar textos correctos
+        enforceCorrectTexts();
     } else {
         document.getElementById('authContainer').style.display = 'flex';
         document.getElementById('chatContainer').style.display = 'none';
@@ -246,6 +309,11 @@ onChildAdded(messagesRef, (snapshot) => {
     
     messagesDiv.appendChild(messageElement);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
+});
+
+// Escuchar cambios en la presencia de usuarios
+onValue(presenceRef, (snapshot) => {
+    updateUsersList(snapshot);
 });
 
 // Llamar a enforceCorrectTexts más frecuentemente al inicio

@@ -289,7 +289,7 @@
 }
 
 #userCount {
-    background: #007bff;
+    background: #28a745;
     color: white;
     padding: 2px 8px;
     border-radius: 12px;
@@ -324,6 +324,11 @@
 
 .user-item.offline .user-status {
     background: #dc3545;
+}
+
+.user-name {
+    font-size: 0.9em;
+    color: #495057;
 }
 
 /* Ajustes para el chat existente */
