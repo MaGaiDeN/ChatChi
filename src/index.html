@@ -20,10 +20,24 @@
         </div>
     </div>
 
+    <div id="usernameModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3>Elige tu nombre de usuario</h3>
+            <input type="text" id="usernameInput" placeholder="Tu nombre de usuario">
+            <button onclick="saveUsername()">Guardar</button>
+        </div>
+    </div>
+
     <div id="chatContainer" class="chat-container" style="display: none;">
         <div class="user-info">
-            <span id="userEmail"></span>
-            <button onclick="handleLogout()">Cerrar Sesión</button>
+            <div>
+                <span id="userEmail"></span>
+                <span id="username"></span>
+            </div>
+            <div>
+                <button onclick="showChangeUsername()">Cambiar nombre</button>
+                <button onclick="handleLogout()">Cerrar Sesión</button>
+            </div>
         </div>
         <div class="chat-messages" id="messages"></div>
         <div class="chat-input">

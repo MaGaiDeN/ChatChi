@@ -1,6 +1,6 @@
 import './styles.css';
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, push, onChildAdded } from 'firebase/database';
+import { getDatabase, ref, push, onChildAdded, set, get } from 'firebase/database';
 import { 
     getAuth,
     signInWithEmailAndPassword, 
@@ -29,6 +29,22 @@ const auth = getAuth(app);
 const database = getDatabase(app);
 const messagesRef = ref(database, 'messages');
 const googleProvider = new GoogleAuthProvider();
+
+// Función para guardar el nombre de usuario en la base de datos
+async function saveUsernameToDb(uid, username) {
+    const userRef = ref(database, `users/${uid}`);
+    await set(userRef, {
+        username: username,
+        lastUpdated: Date.now()
+    });
+}
+
+// Función para obtener el nombre de usuario
+async function getUsernameFromDb(uid) {
+    const userRef = ref(database, `users/${uid}`);
+    const snapshot = await get(userRef);
+    return snapshot.exists() ? snapshot.val().username : null;
+}
 
 // Funciones de autenticación
 window.handleGoogleAuth = async () => {
@@ -75,11 +91,13 @@ window.sendMessage = async function() {
     
     if (message.trim() !== '' && auth.currentUser) {
         try {
+            const username = await getUsernameFromDb(auth.currentUser.uid);
             await push(messagesRef, {
                 text: message,
                 timestamp: Date.now(),
                 userId: auth.currentUser.uid,
-                userEmail: auth.currentUser.email
+                userEmail: auth.currentUser.email,
+                username: username || 'Anónimo'
             });
             messageInput.value = '';
         } catch (error) {
@@ -89,12 +107,23 @@ window.sendMessage = async function() {
 };
 
 // Listener de estado de autenticación
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
     const authContainer = document.getElementById('authContainer');
     const chatContainer = document.getElementById('chatContainer');
     const userEmail = document.getElementById('userEmail');
+    const usernameSpan = document.getElementById('username');
 
     if (user) {
+        // Obtener nombre de usuario existente
+        const username = await getUsernameFromDb(user.uid);
+        
+        if (!username) {
+            // Primer login - mostrar modal
+            document.getElementById('usernameModal').style.display = 'block';
+        } else {
+            usernameSpan.textContent = username;
+        }
+
         authContainer.style.display = 'none';
         chatContainer.style.display = 'block';
         userEmail.textContent = user.email;
@@ -111,8 +140,28 @@ onChildAdded(messagesRef, (snapshot) => {
     
     const messageElement = document.createElement('div');
     messageElement.className = 'message';
-    messageElement.textContent = `${message.userEmail}: ${message.text}`;
+    messageElement.textContent = `${message.username || 'Anónimo'}: ${message.text}`;
     
     messagesDiv.appendChild(messageElement);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
-}); 
+});
+
+// Mostrar modal de nombre de usuario
+window.showChangeUsername = () => {
+    document.getElementById('usernameModal').style.display = 'block';
+};
+
+// Guardar nombre de usuario
+window.saveUsername = async () => {
+    const username = document.getElementById('usernameInput').value.trim();
+    if (username && auth.currentUser) {
+        try {
+            await saveUsernameToDb(auth.currentUser.uid, username);
+            document.getElementById('username').textContent = username;
+            document.getElementById('usernameModal').style.display = 'none';
+            document.getElementById('usernameInput').value = '';
+        } catch (error) {
+            console.error('Error al guardar username:', error);
+        }
+    }
+}; 
