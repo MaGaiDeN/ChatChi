@@ -43,7 +43,6 @@ const messagesRef = ref(database, 'messages');
 
 // Referencias de Firebase para presencia
 const presenceRef = ref(database, 'presence');
-const connectedRef = ref(database, '.info/connected');
 
 // Función mejorada para validar email
 function isValidEmail(email) {
@@ -105,50 +104,52 @@ function enforceCorrectTexts() {
     }
 }
 
-// Función para manejar la presencia de usuarios
-function handlePresence(user) {
+// Función simplificada para manejar la presencia
+async function updatePresence(user) {
+    if (!user) return;
+
     const userPresenceRef = ref(database, `presence/${user.uid}`);
     
-    onValue(connectedRef, (snap) => {
-        if (snap.val() === true) {
-            // Usuario conectado
-            const userStatus = {
-                online: true,
-                lastSeen: serverTimestamp(),
-                email: user.email
-            };
+    try {
+        // Obtener nombre de usuario
+        const userRef = ref(database, `users/${user.uid}`);
+        const userSnapshot = await get(userRef);
+        const username = userSnapshot.exists() ? userSnapshot.val().username : null;
 
-            // Obtener el nombre de usuario si existe
-            const userRef = ref(database, `users/${user.uid}`);
-            get(userRef).then((snapshot) => {
-                if (snapshot.exists()) {
-                    userStatus.username = snapshot.val().username;
-                }
-                
-                // Establecer presencia
-                set(userPresenceRef, userStatus);
-                
-                // Limpiar cuando se desconecte
-                onDisconnect(userPresenceRef).remove();
-            });
-        }
-    });
+        // Actualizar presencia
+        await set(userPresenceRef, {
+            online: true,
+            email: user.email,
+            username: username,
+            lastSeen: serverTimestamp()
+        });
+
+        // Limpiar al desconectarse
+        onDisconnect(userPresenceRef).remove();
+
+        console.log('Presencia actualizada para:', user.email);
+    } catch (error) {
+        console.error('Error actualizando presencia:', error);
+    }
 }
 
 // Función para actualizar la lista de usuarios
-function updateUsersList(presenceSnapshot) {
+function updateUsersList(snapshot) {
     const usersList = document.getElementById('usersList');
     const userCount = document.getElementById('userCount');
     
-    if (!usersList || !userCount) return;
+    if (!usersList || !userCount) {
+        console.log('Elementos de UI no encontrados');
+        return;
+    }
     
+    const users = [];
     usersList.innerHTML = '';
-    let onlineUsers = [];
-    
-    presenceSnapshot.forEach((childSnapshot) => {
+
+    snapshot.forEach((childSnapshot) => {
         const userData = childSnapshot.val();
-        if (userData.online) {
-            onlineUsers.push(userData);
+        if (userData && userData.online) {
+            users.push(userData);
             
             const userElement = document.createElement('div');
             userElement.className = 'user-item online';
@@ -159,8 +160,9 @@ function updateUsersList(presenceSnapshot) {
             usersList.appendChild(userElement);
         }
     });
-    
-    userCount.textContent = onlineUsers.length;
+
+    console.log('Usuarios conectados:', users.length);
+    userCount.textContent = users.length;
 }
 
 // IMPORTANTE: Definir las funciones globales antes de que se cargue el HTML
@@ -168,12 +170,17 @@ window.handleGoogleAuth = async function() {
     const errorDiv = document.getElementById('loginError');
     try {
         const provider = new GoogleAuthProvider();
-        provider.setCustomParameters({
-            prompt: 'select_account'
+        const result = await signInWithPopup(auth, provider).catch(error => {
+            if (error.code === 'auth/popup-closed-by-user') {
+                return signInWithRedirect(auth, provider);
+            }
+            throw error;
         });
         
-        // Usar signInWithRedirect en lugar de signInWithPopup
-        await signInWithRedirect(auth, provider);
+        if (result) {
+            console.log('Login exitoso:', result.user.email);
+            await updatePresence(result.user);
+        }
     } catch (error) {
         console.error('Error en login con Google:', error);
         errorDiv.textContent = 'Error al iniciar sesión con Google';
@@ -242,6 +249,9 @@ window.saveUsername = async function() {
                 lastUpdated: Date.now()
             });
             
+            // Actualizar presencia con nuevo nombre
+            await updatePresence(auth.currentUser);
+            
             document.getElementById('username').textContent = username;
             modal.style.display = 'none';
             usernameInput.value = '';
@@ -274,12 +284,13 @@ window.sendMessage = async function() {
 // Listener de autenticación
 onAuthStateChanged(auth, async (user) => {
     if (user) {
+        console.log('Usuario autenticado:', user.email);
         document.getElementById('authContainer').style.display = 'none';
         document.getElementById('chatContainer').style.display = 'block';
         document.getElementById('userEmail').textContent = user.email;
         
-        // Iniciar manejo de presencia
-        handlePresence(user);
+        // Actualizar presencia
+        await updatePresence(user);
         
         // Obtener nombre de usuario
         const userRef = ref(database, `users/${user.uid}`);
@@ -289,9 +300,6 @@ onAuthStateChanged(auth, async (user) => {
         } else {
             document.getElementById('usernameModal').style.display = 'block';
         }
-        
-        // Forzar textos correctos
-        enforceCorrectTexts();
     } else {
         document.getElementById('authContainer').style.display = 'flex';
         document.getElementById('chatContainer').style.display = 'none';
@@ -311,8 +319,9 @@ onChildAdded(messagesRef, (snapshot) => {
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
 });
 
-// Escuchar cambios en la presencia de usuarios
+// Escuchar cambios en la presencia
 onValue(presenceRef, (snapshot) => {
+    console.log('Cambio en presencia detectado');
     updateUsersList(snapshot);
 });
 
