@@ -108,44 +108,35 @@ function enforceCorrectTexts() {
 
 // Función mejorada para manejar la presencia
 async function updatePresence(user) {
-    if (!user) {
-        console.log('⚠ updatePresence: No hay usuario');
-        return;
-    }
+    if (!user) return;
 
-    console.log('→ Iniciando actualización de presencia para:', user.email);
-    
     try {
         const userPresenceRef = ref(database, `presence/${user.uid}`);
         const connectedRef = ref(database, '.info/connected');
         
         onValue(connectedRef, async (snap) => {
-            console.log('→ Estado de conexión:', snap.val());
-            
             if (snap.val() === true) {
-                try {
-                    await onDisconnect(userPresenceRef).remove();
-                    console.log('✓ Configurada limpieza al desconectar');
-                    
-                    const userRef = ref(database, `users/${user.uid}`);
-                    const snapshot = await get(userRef);
-                    const username = snapshot.exists() ? snapshot.val().username : null;
-                    
-                    await set(userPresenceRef, {
-                        online: true,
-                        email: user.email,
-                        username: username,
-                        lastSeen: serverTimestamp()
-                    });
-                    
-                    console.log('✓ Presencia actualizada exitosamente');
-                } catch (error) {
-                    console.error('✗ Error al configurar presencia:', error);
-                }
+                // Configurar limpieza al desconectar
+                await onDisconnect(userPresenceRef).remove();
+                
+                // Obtener nombre de usuario
+                const userRef = ref(database, `users/${user.uid}`);
+                const userSnapshot = await get(userRef);
+                const username = userSnapshot.exists() ? userSnapshot.val().username : user.email;
+                
+                // Actualizar presencia
+                await set(userPresenceRef, {
+                    online: true,
+                    email: user.email,
+                    username: username,
+                    lastSeen: serverTimestamp()
+                });
+                
+                console.log('Presencia actualizada para:', username);
             }
         });
     } catch (error) {
-        console.error('✗ Error en updatePresence:', error);
+        console.error('Error actualizando presencia:', error);
     }
 }
 
@@ -175,29 +166,24 @@ function clearUserData() {
 function updateUsersList(snapshot) {
     const usersList = document.getElementById('usersList');
     const userCount = document.getElementById('userCount');
-    
-    if (!usersList || !userCount) return;
-    
-    const users = [];
     usersList.innerHTML = '';
-
+    
+    let count = 0;
     snapshot.forEach((childSnapshot) => {
         const userData = childSnapshot.val();
-        if (userData && userData.online) {
-            users.push(userData);
-            
-            const userElement = document.createElement('div');
-            userElement.className = 'user-item online';
-            userElement.innerHTML = `
+        if (userData.online) {
+            count++;
+            const userDiv = document.createElement('div');
+            userDiv.className = 'user-item';
+            userDiv.innerHTML = `
                 <span class="user-status"></span>
-                <span class="user-name">${userData.username || userData.email || 'Anónimo'}</span>
+                <span class="user-name">${userData.username || userData.email}</span>
             `;
-            usersList.appendChild(userElement);
+            usersList.appendChild(userDiv);
         }
     });
-
-    console.log(`Usuarios conectados: ${users.length}`);
-    userCount.textContent = users.length.toString();
+    
+    userCount.textContent = count.toString();
 }
 
 // Función para manejar errores con logs
@@ -447,14 +433,54 @@ window.addEventListener('beforeunload', async (event) => {
     }
 });
 
-// Escuchar nuevos mensajes
+// Función para enviar mensajes
+function sendMessage() {
+    const messageInput = document.getElementById('messageInput');
+    const message = messageInput.value.trim();
+    
+    if (message) {
+        const user = auth.currentUser;
+        if (user) {
+            const messagesRef = ref(database, 'messages');
+            push(messagesRef, {
+                text: message,
+                userId: user.uid,
+                userEmail: user.email,
+                timestamp: serverTimestamp()
+            });
+            messageInput.value = '';
+        }
+    }
+}
+
+// Agregar evento de tecla Enter para enviar mensajes
+document.getElementById('messageInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+
+// Escuchar cambios en los mensajes
 onChildAdded(messagesRef, (snapshot) => {
     const message = snapshot.val();
     const messagesDiv = document.getElementById('messages');
-    
     const messageElement = document.createElement('div');
     messageElement.className = 'message';
-    messageElement.textContent = `${message.userEmail}: ${message.text}`;
+    
+    // Verificar si el mensaje es del usuario actual
+    const isCurrentUser = message.userId === auth.currentUser?.uid;
+    messageElement.classList.add(isCurrentUser ? 'message-own' : 'message-other');
+    
+    messageElement.innerHTML = `
+        <div class="message-content">
+            <div class="message-header">
+                <span class="message-author">${message.userEmail}</span>
+                <span class="message-time">${new Date(message.timestamp).toLocaleTimeString()}</span>
+            </div>
+            <div class="message-text">${message.text}</div>
+        </div>
+    `;
     
     messagesDiv.appendChild(messageElement);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
