@@ -106,37 +106,71 @@ function enforceCorrectTexts() {
     }
 }
 
-// Función mejorada para manejar la presencia
+// Función mejorada de presencia
 async function updatePresence(user) {
-    if (!user) return;
+    console.log('🟢 PRESENCIA: Iniciando actualización para:', user.email);
+    
+    if (!user) {
+        console.error('🔴 PRESENCIA: No hay usuario');
+        return;
+    }
 
     try {
         const userPresenceRef = ref(database, `presence/${user.uid}`);
         const connectedRef = ref(database, '.info/connected');
         
+        console.log('🟡 PRESENCIA: Referencias creadas', {
+            presencePath: `presence/${user.uid}`,
+            userUID: user.uid
+        });
+
         onValue(connectedRef, async (snap) => {
+            console.log('🟡 PRESENCIA: Estado de conexión:', snap.val());
+            
             if (snap.val() === true) {
-                // Configurar limpieza al desconectar
-                await onDisconnect(userPresenceRef).remove();
-                
-                // Obtener nombre de usuario
-                const userRef = ref(database, `users/${user.uid}`);
-                const userSnapshot = await get(userRef);
-                const username = userSnapshot.exists() ? userSnapshot.val().username : user.email;
-                
-                // Actualizar presencia
-                await set(userPresenceRef, {
-                    online: true,
-                    email: user.email,
-                    username: username,
-                    lastSeen: serverTimestamp()
-                });
-                
-                console.log('Presencia actualizada para:', username);
+                try {
+                    // Configurar limpieza
+                    await onDisconnect(userPresenceRef).remove();
+                    console.log('🟢 PRESENCIA: Limpieza configurada');
+
+                    // Obtener nombre de usuario
+                    const userRef = ref(database, `users/${user.uid}`);
+                    const userSnapshot = await get(userRef);
+                    console.log('🟡 PRESENCIA: Datos de usuario obtenidos:', userSnapshot.val());
+
+                    const username = userSnapshot.exists() ? userSnapshot.val().username : user.email;
+                    
+                    // Actualizar presencia
+                    const presenceData = {
+                        online: true,
+                        email: user.email,
+                        username: username,
+                        lastSeen: serverTimestamp(),
+                        uid: user.uid
+                    };
+                    
+                    console.log('🟡 PRESENCIA: Actualizando con datos:', presenceData);
+                    
+                    await set(userPresenceRef, presenceData);
+                    console.log('🟢 PRESENCIA: Actualización exitosa');
+                    
+                    // Verificar inmediatamente la presencia
+                    const verifySnapshot = await get(userPresenceRef);
+                    console.log('🟡 PRESENCIA: Verificación después de set:', verifySnapshot.val());
+                    
+                } catch (error) {
+                    console.error('🔴 PRESENCIA: Error en actualización:', error);
+                }
             }
         });
+
+        // Verificar presencias existentes
+        const allPresenceRef = ref(database, 'presence');
+        const presenceSnapshot = await get(allPresenceRef);
+        console.log('🟡 PRESENCIA: Todas las presencias actuales:', presenceSnapshot.val());
+
     } catch (error) {
-        console.error('Error actualizando presencia:', error);
+        console.error('🔴 PRESENCIA: Error general:', error);
     }
 }
 
@@ -164,21 +198,29 @@ function clearUserData() {
 
 // Función mejorada para actualizar la lista de usuarios
 function updateUsersList(snapshot) {
-    console.log('Actualizando lista de usuarios');
+    console.log('👥 USUARIOS: Iniciando actualización');
+    console.log('👥 USUARIOS: Datos recibidos:', snapshot.val());
+
     const usersList = document.getElementById('usersList');
     const userCount = document.getElementById('userCount');
     
     if (!usersList || !userCount) {
-        console.error('Elementos de usuarios no encontrados');
+        console.error('🔴 USUARIOS: Elementos DOM no encontrados', {
+            usersList: !!usersList,
+            userCount: !!userCount
+        });
         return;
     }
 
+    console.log('👥 USUARIOS: Elementos DOM encontrados');
     usersList.innerHTML = '';
     let count = 0;
+    let usersData = [];
 
     snapshot.forEach((childSnapshot) => {
         const userData = childSnapshot.val();
-        console.log('Usuario encontrado:', userData);
+        usersData.push(userData);
+        console.log('👤 USUARIO:', userData);
         
         if (userData.online) {
             count++;
@@ -192,7 +234,12 @@ function updateUsersList(snapshot) {
         }
     });
 
-    console.log('Total usuarios conectados:', count);
+    console.log('👥 USUARIOS: Resumen', {
+        totalUsuarios: usersData.length,
+        usuariosOnline: count,
+        todosLosDatos: usersData
+    });
+
     userCount.textContent = count.toString();
 }
 
@@ -354,12 +401,25 @@ function initializeChat() {
 
     // Configurar listener de presencia
     const presenceRef = ref(database, 'presence');
-    console.log('15. Configurando listener de presencia');
+    console.log('🎯 Configurando listener de presencia');
     
     onValue(presenceRef, (snapshot) => {
-        console.log('16. Actualización de presencia recibida');
+        console.log('🔄 PRESENCIA: Cambio detectado');
+        console.log('🔄 PRESENCIA: Datos actuales:', snapshot.val());
         updateUsersList(snapshot);
     });
+
+    // Verificación periódica de presencia
+    setInterval(async () => {
+        if (auth.currentUser) {
+            const allPresenceRef = ref(database, 'presence');
+            const snapshot = await get(allPresenceRef);
+            console.log('🔍 VERIFICACIÓN PERIÓDICA:', {
+                timestamp: new Date().toISOString(),
+                presencias: snapshot.val()
+            });
+        }
+    }, 10000);
 }
 
 // Función para mostrar mensajes
