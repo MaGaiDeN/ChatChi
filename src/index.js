@@ -164,13 +164,22 @@ function clearUserData() {
 
 // Función mejorada para actualizar la lista de usuarios
 function updateUsersList(snapshot) {
+    console.log('Actualizando lista de usuarios');
     const usersList = document.getElementById('usersList');
     const userCount = document.getElementById('userCount');
-    usersList.innerHTML = '';
     
+    if (!usersList || !userCount) {
+        console.error('Elementos de usuarios no encontrados');
+        return;
+    }
+
+    usersList.innerHTML = '';
     let count = 0;
+
     snapshot.forEach((childSnapshot) => {
         const userData = childSnapshot.val();
+        console.log('Usuario encontrado:', userData);
+        
         if (userData.online) {
             count++;
             const userDiv = document.createElement('div');
@@ -182,7 +191,8 @@ function updateUsersList(snapshot) {
             usersList.appendChild(userDiv);
         }
     });
-    
+
+    console.log('Total usuarios conectados:', count);
     userCount.textContent = count.toString();
 }
 
@@ -488,7 +498,7 @@ onChildAdded(messagesRef, (snapshot) => {
 
 // Escuchar cambios en la presencia
 onValue(presenceRef, (snapshot) => {
-    console.log('Actualizando lista de usuarios');
+    console.log('Cambio detectado en presencia');
     updateUsersList(snapshot);
 });
 
