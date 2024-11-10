@@ -23,7 +23,8 @@ import {
     onAuthStateChanged,
     signInWithRedirect,
     remove,
-    getRedirectResult
+    getRedirectResult,
+    updateProfile
 } from 'firebase/auth';
 
 // Configuración mejorada de Firebase
@@ -691,33 +692,106 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(enforceCorrectTexts, 2000);
 });
 
-// Manejar login con email
+// Función para manejar el login y registro
+async function handleAuth(email, password, username) {
+    try {
+        // Intentar login primero
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        // Actualizar el nombre de usuario
+        await updateUserProfile(userCredential.user, username);
+        return userCredential;
+    } catch (error) {
+        if (error.code === 'auth/user-not-found') {
+            // Si el usuario no existe, crear uno nuevo
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            // Establecer el nombre de usuario para el nuevo usuario
+            await updateUserProfile(userCredential.user, username);
+            return userCredential;
+        }
+        throw error;
+    }
+}
+
+// Función para actualizar el perfil del usuario
+async function updateUserProfile(user, username) {
+    try {
+        // Actualizar displayName en Auth
+        await updateProfile(user, {
+            displayName: username
+        });
+        
+        // Actualizar en la base de datos
+        const userRef = ref(database, `users/${user.uid}`);
+        await set(userRef, {
+            username: username,
+            email: user.email,
+            lastUpdated: serverTimestamp()
+        });
+        
+        console.log('Perfil actualizado:', username);
+    } catch (error) {
+        console.error('Error actualizando perfil:', error);
+        throw error;
+    }
+}
+
+// Actualizar el event listener del formulario
 document.getElementById('emailForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = document.getElementById('emailInput').value;
+    const username = document.getElementById('usernameInput').value.trim();
+    const email = document.getElementById('emailInput').value.trim();
     const password = document.getElementById('passwordInput').value;
     const errorDiv = document.getElementById('loginError');
 
     try {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        if (!username) {
+            errorDiv.textContent = 'Por favor, ingresa un nombre de usuario';
+            return;
+        }
+        
+        const userCredential = await handleAuth(email, password, username);
         console.log('Login exitoso:', userCredential.user.email);
         errorDiv.textContent = '';
     } catch (error) {
-        console.error('Error en login:', error);
-        if (error.code === 'auth/user-not-found') {
-            // Si el usuario no existe, lo creamos
-            try {
-                await createUserWithEmailAndPassword(auth, email, password);
-                console.log('Usuario creado exitosamente');
-            } catch (createError) {
-                console.error('Error creando usuario:', createError);
-                errorDiv.textContent = 'Error al crear usuario';
-            }
-        } else {
-            errorDiv.textContent = 'Error en el inicio de sesión';
-        }
+        console.error('Error:', error);
+        handleAuthError(error, errorDiv);
     }
 });
+
+// Función para cambiar nombre de usuario
+async function showChangeUsername() {
+    try {
+        const user = auth.currentUser;
+        if (!user) throw new Error('No hay usuario autenticado');
+
+        const newUsername = prompt('Ingresa tu nuevo nombre de usuario:');
+        if (!newUsername) return;
+
+        await updateUserProfile(user, newUsername);
+        
+        // Actualizar UI
+        const usernameElement = document.getElementById('username');
+        if (usernameElement) {
+            usernameElement.textContent = newUsername;
+        }
+
+        // Actualizar presencia
+        const userPresenceRef = ref(database, `presence/${user.uid}`);
+        await set(userPresenceRef, {
+            online: true,
+            email: user.email,
+            displayName: newUsername,
+            lastSeen: serverTimestamp()
+        });
+
+    } catch (error) {
+        console.error('Error cambiando nombre:', error);
+        alert('Error al cambiar el nombre de usuario');
+    }
+}
+
+// Asegurarse de exportar la función
+window.showChangeUsername = showChangeUsername;
 
 // Logs para verificar carga inicial
 document.addEventListener('DOMContentLoaded', () => {
