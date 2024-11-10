@@ -64,31 +64,26 @@
     </div>
 
     <div id="chatContainer" class="chat-container" style="display: none;">
-        <div class="user-info">
-            <div class="user-details">
-                <span id="username" class="username"></span>
-                <span id="userEmail" class="user-email"></span>
-            </div>
-            <div class="user-actions">
-                <button 
-                    type="button" 
-                    onclick="showChangeUsername()" 
-                    class="change-name-btn">
-                    Cambiar nombre de usuario
-                </button>
-                <button 
-                    type="button" 
-                    onclick="handleLogout()" 
-                    class="logout-btn">
-                    Cerrar Sesión
-                </button>
-            </div>
-        </div>
-        
         <div class="chat-layout">
             <!-- Panel principal del chat -->
             <div class="chat-main">
+                <div class="user-info">
+                    <div class="user-details">
+                        <span id="username" class="username"></span>
+                        <span id="userEmail" class="user-email"></span>
+                    </div>
+                    <div class="user-actions">
+                        <button onclick="showChangeUsername()" class="change-name-btn">
+                            Cambiar nombre
+                        </button>
+                        <button onclick="handleLogout()" class="logout-btn">
+                            Cerrar Sesión
+                        </button>
+                    </div>
+                </div>
+                
                 <div id="messages" class="chat-messages"></div>
+                
                 <div class="chat-input">
                     <input 
                         type="text" 
@@ -100,7 +95,7 @@
                 </div>
             </div>
             
-            <!-- Panel de usuarios conectados -->
+            <!-- Panel de usuarios -->
             <div class="users-panel">
                 <div class="users-header">
                     <h3>Usuarios conectados</h3>
