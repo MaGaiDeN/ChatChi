@@ -188,7 +188,7 @@ function updateUsersList(snapshot) {
         
         userDiv.innerHTML = `
             <span class="user-status"></span>
-            <span class="user-name">${userData.displayName || userData.email}</span>
+            <span class="user-name">${userData.displayName}</span>
         `;
         usersList.appendChild(userDiv);
     });
@@ -694,6 +694,54 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.preventDefault();
                 sendMessage();
             }
+        });
+    }
+});
+
+// Validación del formulario de login
+document.addEventListener('DOMContentLoaded', () => {
+    const emailForm = document.getElementById('emailForm');
+    const googleBtn = document.querySelector('.google-btn');
+    const usernameInput = document.getElementById('usernameInput');
+    const errorDiv = document.getElementById('loginError');
+
+    // Deshabilitar botón de Google inicialmente
+    if (googleBtn) {
+        googleBtn.disabled = true;
+        googleBtn.style.opacity = '0.5';
+        googleBtn.style.cursor = 'not-allowed';
+    }
+
+    // Validar nombre de usuario en tiempo real
+    if (usernameInput) {
+        usernameInput.addEventListener('input', () => {
+            const username = usernameInput.value.trim();
+            if (username.length >= 3) {
+                googleBtn.disabled = false;
+                googleBtn.style.opacity = '1';
+                googleBtn.style.cursor = 'pointer';
+                errorDiv.textContent = '';
+            } else {
+                googleBtn.disabled = true;
+                googleBtn.style.opacity = '0.5';
+                googleBtn.style.cursor = 'not-allowed';
+                errorDiv.textContent = 'El nombre de usuario debe tener al menos 3 caracteres';
+            }
+        });
+    }
+
+    // Validar formulario de email
+    if (emailForm) {
+        emailForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = usernameInput.value.trim();
+            
+            if (username.length < 3) {
+                errorDiv.textContent = 'El nombre de usuario debe tener al menos 3 caracteres';
+                return;
+            }
+            
+            // ... resto del código de login ...
         });
     }
 });
