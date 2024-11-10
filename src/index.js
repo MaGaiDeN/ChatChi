@@ -246,44 +246,152 @@ window.handleGoogleAuth = async function() {
     }
 };
 
-// Listener de autenticación mejorado
+// Listener de autenticación con logs
 onAuthStateChanged(auth, async (user) => {
-    console.log('Estado de autenticación cambiado:', {
+    console.log('1. Estado de autenticación cambiado:', {
         autenticado: !!user,
         timestamp: new Date().toISOString()
     });
     
     if (user) {
-        console.log('Usuario autenticado:', {
+        console.log('2. Usuario autenticado:', {
             email: user.email,
             uid: user.uid,
             displayName: user.displayName
         });
         
-        document.getElementById('authContainer').style.display = 'none';
-        document.getElementById('chatContainer').style.display = 'block';
-        document.getElementById('userEmail').textContent = user.email;
+        // Verificar elementos del DOM
+        const authContainer = document.getElementById('authContainer');
+        const chatContainer = document.getElementById('chatContainer');
+        console.log('3. Elementos del contenedor:', {
+            authContainer: !!authContainer,
+            chatContainer: !!chatContainer
+        });
+
+        // Cambiar visibilidad
+        if (authContainer) authContainer.style.display = 'none';
+        if (chatContainer) chatContainer.style.display = 'block';
         
+        console.log('4. Visibilidad actualizada');
+
         try {
+            // Actualizar UI
+            const userEmailElement = document.getElementById('userEmail');
+            if (userEmailElement) {
+                userEmailElement.textContent = user.email;
+                console.log('5. Email de usuario actualizado en UI');
+            }
+
+            // Actualizar presencia
+            console.log('6. Iniciando actualización de presencia');
             await updatePresence(user);
             
+            // Verificar datos de usuario
             const userRef = ref(database, `users/${user.uid}`);
             const snapshot = await get(userRef);
             
+            console.log('7. Datos de usuario obtenidos:', {
+                existe: snapshot.exists(),
+                datos: snapshot.val()
+            });
+
             if (snapshot.exists()) {
-                document.getElementById('username').textContent = snapshot.val().username;
+                const usernameElement = document.getElementById('username');
+                if (usernameElement) {
+                    usernameElement.textContent = snapshot.val().username;
+                    console.log('8. Nombre de usuario actualizado en UI');
+                }
             } else {
-                document.getElementById('usernameModal').style.display = 'block';
+                console.log('9. Usuario nuevo - Mostrando modal');
+                const modal = document.getElementById('usernameModal');
+                if (modal) modal.style.display = 'block';
             }
+
+            // Inicializar chat
+            console.log('10. Iniciando configuración del chat');
+            initializeChat();
+
         } catch (error) {
-            console.error('Error al actualizar datos de usuario:', error);
+            console.error('Error en configuración inicial:', error);
         }
     } else {
-        console.log('Usuario no autenticado - Mostrando pantalla de login');
-        document.getElementById('authContainer').style.display = 'flex';
-        document.getElementById('chatContainer').style.display = 'none';
+        console.log('X. No hay usuario autenticado');
+        const authContainer = document.getElementById('authContainer');
+        const chatContainer = document.getElementById('chatContainer');
+        
+        if (authContainer) authContainer.style.display = 'flex';
+        if (chatContainer) chatContainer.style.display = 'none';
     }
 });
+
+// Función para inicializar el chat
+function initializeChat() {
+    console.log('11. Inicializando chat');
+    
+    // Verificar elementos del chat
+    const elements = {
+        messages: document.getElementById('messages'),
+        messageInput: document.getElementById('messageInput'),
+        usersList: document.getElementById('usersList'),
+        userCount: document.getElementById('userCount')
+    };
+
+    console.log('12. Elementos del chat:', {
+        messagesExiste: !!elements.messages,
+        inputExiste: !!elements.messageInput,
+        usersListExiste: !!elements.usersList,
+        userCountExiste: !!elements.userCount
+    });
+
+    // Configurar listener de mensajes
+    const messagesRef = ref(database, 'messages');
+    console.log('13. Configurando listener de mensajes');
+    
+    onChildAdded(messagesRef, (snapshot) => {
+        console.log('14. Nuevo mensaje recibido:', snapshot.val());
+        displayMessage(snapshot.val());
+    });
+
+    // Configurar listener de presencia
+    const presenceRef = ref(database, 'presence');
+    console.log('15. Configurando listener de presencia');
+    
+    onValue(presenceRef, (snapshot) => {
+        console.log('16. Actualización de presencia recibida');
+        updateUsersList(snapshot);
+    });
+}
+
+// Función para mostrar mensajes
+function displayMessage(message) {
+    console.log('17. Mostrando mensaje:', message);
+    const messagesDiv = document.getElementById('messages');
+    
+    if (!messagesDiv) {
+        console.error('18. Error: contenedor de mensajes no encontrado');
+        return;
+    }
+
+    const messageElement = document.createElement('div');
+    messageElement.className = 'message';
+    
+    const isCurrentUser = message.userId === auth.currentUser?.uid;
+    messageElement.classList.add(isCurrentUser ? 'message-own' : 'message-other');
+    
+    messageElement.innerHTML = `
+        <div class="message-content">
+            <div class="message-header">
+                <span class="message-author">${message.userEmail}</span>
+                <span class="message-time">${new Date(message.timestamp).toLocaleTimeString()}</span>
+            </div>
+            <div class="message-text">${message.text}</div>
+        </div>
+    `;
+    
+    messagesDiv.appendChild(messageElement);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    console.log('19. Mensaje agregado al DOM');
+}
 
 // Verificar resultado de redirección al cargar
 getRedirectResult(auth)
