@@ -6,6 +6,20 @@
     <title>ChatChi - Chat en Tiempo Real</title>
     <style>
         /* Estilos críticos iniciales */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+        }
+
         .auth-container {
             display: flex !important;
             justify-content: center !important;
@@ -17,6 +31,87 @@
             left: 0 !important;
             background: #f0f2f5 !important;
             padding: 20px !important;
+        }
+
+        .auth-box {
+            background: white !important;
+            padding: 30px !important;
+            border-radius: 8px !important;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1) !important;
+            width: 100% !important;
+            max-width: 400px !important;
+        }
+
+        .auth-logo {
+            width: 200px !important;
+            height: auto !important;
+            margin: 0 auto 20px !important;
+            display: block !important;
+        }
+
+        .auth-form {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 15px !important;
+            margin-bottom: 20px !important;
+        }
+
+        .auth-form input {
+            padding: 12px !important;
+            border: 1px solid #ddd !important;
+            border-radius: 4px !important;
+            font-size: 16px !important;
+        }
+
+        .email-btn, .google-btn {
+            width: 100% !important;
+            padding: 12px !important;
+            border: none !important;
+            border-radius: 4px !important;
+            font-size: 16px !important;
+            cursor: pointer !important;
+            margin-bottom: 10px !important;
+        }
+
+        .email-btn {
+            background: #0084ff !important;
+            color: white !important;
+        }
+
+        .google-btn {
+            background: white !important;
+            border: 1px solid #ddd !important;
+        }
+
+        .auth-separator {
+            text-align: center !important;
+            margin: 20px 0 !important;
+            position: relative !important;
+        }
+
+        .auth-separator::before,
+        .auth-separator::after {
+            content: '' !important;
+            position: absolute !important;
+            top: 50% !important;
+            width: 45% !important;
+            height: 1px !important;
+            background: #ddd !important;
+        }
+
+        .auth-separator::before { left: 0 !important; }
+        .auth-separator::after { right: 0 !important; }
+
+        h2 {
+            text-align: center !important;
+            margin-bottom: 20px !important;
+            color: #1c1e21 !important;
+        }
+
+        .error-message {
+            color: #dc3545 !important;
+            text-align: center !important;
+            margin: 10px 0 !important;
         }
     </style>
 </head>
