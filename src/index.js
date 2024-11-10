@@ -116,58 +116,75 @@ async function updatePresence(user) {
     }
 
     try {
+        // Referencias específicas al usuario
         const userPresenceRef = ref(database, `presence/${user.uid}`);
+        const userRef = ref(database, `users/${user.uid}`);
         const connectedRef = ref(database, '.info/connected');
-        
+
         console.log('🟡 PRESENCIA: Referencias creadas', {
             presencePath: `presence/${user.uid}`,
-            userUID: user.uid
+            userPath: `users/${user.uid}`,
+            uid: user.uid
         });
 
+        // Obtener nombre de usuario
+        let username = user.displayName || user.email;
+        try {
+            const userSnapshot = await get(userRef);
+            if (userSnapshot.exists()) {
+                username = userSnapshot.val().username || username;
+            }
+            console.log('🟡 PRESENCIA: Username obtenido:', username);
+        } catch (error) {
+            console.error('🔴 PRESENCIA: Error obteniendo username:', error);
+        }
+
+        // Listener de conexión
         onValue(connectedRef, async (snap) => {
             console.log('🟡 PRESENCIA: Estado de conexión:', snap.val());
             
             if (snap.val() === true) {
                 try {
-                    // Configurar limpieza
-                    await onDisconnect(userPresenceRef).remove();
-                    console.log('🟢 PRESENCIA: Limpieza configurada');
-
-                    // Obtener nombre de usuario
-                    const userRef = ref(database, `users/${user.uid}`);
-                    const userSnapshot = await get(userRef);
-                    console.log('🟡 PRESENCIA: Datos de usuario obtenidos:', userSnapshot.val());
-
-                    const username = userSnapshot.exists() ? userSnapshot.val().username : user.email;
-                    
-                    // Actualizar presencia
+                    // Datos de presencia
                     const presenceData = {
                         online: true,
                         email: user.email,
                         username: username,
                         lastSeen: serverTimestamp(),
-                        uid: user.uid
+                        displayName: user.displayName || username
                     };
                     
-                    console.log('🟡 PRESENCIA: Actualizando con datos:', presenceData);
-                    
+                    console.log('🟡 PRESENCIA: Preparando datos:', presenceData);
+
+                    // Configurar limpieza
+                    await onDisconnect(userPresenceRef).remove();
+                    console.log('🟢 PRESENCIA: Limpieza configurada');
+
+                    // Actualizar presencia
                     await set(userPresenceRef, presenceData);
-                    console.log('🟢 PRESENCIA: Actualización exitosa');
-                    
-                    // Verificar inmediatamente la presencia
-                    const verifySnapshot = await get(userPresenceRef);
-                    console.log('🟡 PRESENCIA: Verificación después de set:', verifySnapshot.val());
-                    
+                    console.log('🟢 PRESENCIA: Presencia actualizada');
                 } catch (error) {
                     console.error('🔴 PRESENCIA: Error en actualización:', error);
                 }
             }
         });
 
-        // Verificar presencias existentes
+        // Escuchar todos los usuarios presentes
         const allPresenceRef = ref(database, 'presence');
-        const presenceSnapshot = await get(allPresenceRef);
-        console.log('🟡 PRESENCIA: Todas las presencias actuales:', presenceSnapshot.val());
+        onValue(allPresenceRef, (snapshot) => {
+            console.log('👥 USUARIOS: Cambio detectado en presencias');
+            const users = [];
+            snapshot.forEach((childSnapshot) => {
+                const userData = childSnapshot.val();
+                if (userData.online) {
+                    users.push(userData);
+                }
+            });
+            console.log('👥 USUARIOS: Lista actual:', users);
+            updateUsersList(users);
+        }, (error) => {
+            console.error('🔴 PRESENCIA: Error en listener global:', error);
+        });
 
     } catch (error) {
         console.error('🔴 PRESENCIA: Error general:', error);
@@ -196,51 +213,40 @@ function clearUserData() {
     });
 }
 
-// Función mejorada para actualizar la lista de usuarios
-function updateUsersList(snapshot) {
-    console.log('👥 USUARIOS: Iniciando actualización');
-    console.log('👥 USUARIOS: Datos recibidos:', snapshot.val());
-
+// Función actualizada para mostrar usuarios
+function updateUsersList(users) {
+    console.log('👥 USUARIOS: Iniciando actualización de UI');
+    
     const usersList = document.getElementById('usersList');
     const userCount = document.getElementById('userCount');
     
     if (!usersList || !userCount) {
-        console.error('🔴 USUARIOS: Elementos DOM no encontrados', {
-            usersList: !!usersList,
-            userCount: !!userCount
-        });
+        console.error('🔴 USUARIOS: Elementos no encontrados');
         return;
     }
 
-    console.log('👥 USUARIOS: Elementos DOM encontrados');
     usersList.innerHTML = '';
-    let count = 0;
-    let usersData = [];
+    const currentUser = auth.currentUser;
 
-    snapshot.forEach((childSnapshot) => {
-        const userData = childSnapshot.val();
-        usersData.push(userData);
+    users.forEach(userData => {
         console.log('👤 USUARIO:', userData);
+        const userDiv = document.createElement('div');
+        userDiv.className = 'user-item';
         
-        if (userData.online) {
-            count++;
-            const userDiv = document.createElement('div');
-            userDiv.className = 'user-item';
-            userDiv.innerHTML = `
-                <span class="user-status"></span>
-                <span class="user-name">${userData.username || userData.email}</span>
-            `;
-            usersList.appendChild(userDiv);
+        // Destacar usuario actual
+        if (currentUser && userData.email === currentUser.email) {
+            userDiv.className += ' current-user';
         }
+
+        userDiv.innerHTML = `
+            <span class="user-status"></span>
+            <span class="user-name">${userData.displayName || userData.username || userData.email}</span>
+        `;
+        usersList.appendChild(userDiv);
     });
 
-    console.log('👥 USUARIOS: Resumen', {
-        totalUsuarios: usersData.length,
-        usuariosOnline: count,
-        todosLosDatos: usersData
-    });
-
-    userCount.textContent = count.toString();
+    console.log('👥 USUARIOS: Total conectados:', users.length);
+    userCount.textContent = users.length.toString();
 }
 
 // Función para manejar errores con logs
