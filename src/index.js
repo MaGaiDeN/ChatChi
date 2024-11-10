@@ -291,6 +291,8 @@ onAuthStateChanged(auth, async (user) => {
             updateUsersList(snapshot);
         });
         
+        // Inicializar listeners de mensajes
+        initializeMessages();
     } else {
         // Usuario no autenticado
         document.getElementById('authContainer').style.display = 'flex';
@@ -299,67 +301,29 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
-// Función para inicializar el chat
-function initializeChat() {
-    console.log('11. Inicializando chat');
+// Función para inicializar los mensajes
+function initializeMessages() {
+    console.log('📨 Inicializando sistema de mensajes');
     
-    // Configurar listener de presencia
-    const presenceRef = ref(database, 'presence');
-    console.log('🎯 Configurando listener de presencia');
-    
-    onValue(presenceRef, (snapshot) => {
-        console.log('🔄 PRESENCIA: Cambio detectado');
-        const presenceData = snapshot.val();
-        console.log('🔄 PRESENCIA: Datos actuales:', presenceData);
-        updateUsersList(snapshot);
-    }, (error) => {
-        console.error('🔴 Error leyendo presencias:', error);
-    });
-
-    // Verificar elementos del chat
-    const elements = {
-        messages: document.getElementById('messages'),
-        messageInput: document.getElementById('messageInput'),
-        usersList: document.getElementById('usersList'),
-        userCount: document.getElementById('userCount')
-    };
-
-    console.log('12. Elementos del chat:', {
-        messagesExiste: !!elements.messages,
-        inputExiste: !!elements.messageInput,
-        usersListExiste: !!elements.usersList,
-        userCountExiste: !!elements.userCount
-    });
-
-    // Configurar listener de mensajes
     const messagesRef = ref(database, 'messages');
-    console.log('13. Configurando listener de mensajes');
     
+    // Escuchar nuevos mensajes
     onChildAdded(messagesRef, (snapshot) => {
-        console.log('14. Nuevo mensaje recibido:', snapshot.val());
-        displayMessage(snapshot.val());
+        const message = snapshot.val();
+        console.log('📩 Nuevo mensaje recibido:', message);
+        displayMessage(message);
+    }, (error) => {
+        console.error('❌ Error al escuchar mensajes:', error);
     });
-
-    // Verificación periódica de presencia
-    setInterval(async () => {
-        if (auth.currentUser) {
-            const allPresenceRef = ref(database, 'presence');
-            const snapshot = await get(allPresenceRef);
-            console.log('🔍 VERIFICACIÓN PERIÓDICA:', {
-                timestamp: new Date().toISOString(),
-                presencias: snapshot.val()
-            });
-        }
-    }, 10000);
 }
 
 // Función para mostrar mensajes
 function displayMessage(message) {
-    console.log('17. Mostrando mensaje:', message);
+    console.log('📝 Mostrando mensaje:', message);
     const messagesDiv = document.getElementById('messages');
     
     if (!messagesDiv) {
-        console.error('18. Error: contenedor de mensajes no encontrado');
+        console.error('❌ No se encontró el contenedor de mensajes');
         return;
     }
 
@@ -369,11 +333,13 @@ function displayMessage(message) {
     const isCurrentUser = message.userId === auth.currentUser?.uid;
     messageElement.classList.add(isCurrentUser ? 'message-own' : 'message-other');
     
+    const timestamp = message.timestamp ? new Date(message.timestamp) : new Date();
+    
     messageElement.innerHTML = `
         <div class="message-content">
             <div class="message-header">
-                <span class="message-author">${message.userEmail}</span>
-                <span class="message-time">${new Date(message.timestamp).toLocaleTimeString()}</span>
+                <span class="message-author">${message.displayName}</span>
+                <span class="message-time">${timestamp.toLocaleTimeString()}</span>
             </div>
             <div class="message-text">${message.text}</div>
         </div>
@@ -381,7 +347,45 @@ function displayMessage(message) {
     
     messagesDiv.appendChild(messageElement);
     messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    console.log('19. Mensaje agregado al DOM');
+    console.log('✅ Mensaje agregado al DOM');
+}
+
+// Función para enviar mensajes
+async function sendMessage() {
+    const messageInput = document.getElementById('messageInput');
+    const message = messageInput.value.trim();
+    
+    if (!message) return;
+    
+    try {
+        const user = auth.currentUser;
+        if (!user) {
+            console.error('❌ No hay usuario autenticado');
+            return;
+        }
+
+        const messagesRef = ref(database, 'messages');
+        
+        const newMessage = {
+            text: message,
+            userId: user.uid,
+            userEmail: user.email,
+            displayName: user.displayName || 'Usuario',
+            timestamp: Date.now()  // Cambiado de serverTimestamp()
+        };
+
+        console.log('📤 Enviando mensaje:', newMessage);
+        
+        // Enviar mensaje
+        await push(messagesRef, newMessage);
+        console.log('✅ Mensaje enviado correctamente');
+        
+        // Limpiar input
+        messageInput.value = '';
+        
+    } catch (error) {
+        console.error('❌ Error enviando mensaje:', error);
+    }
 }
 
 // Verificar resultado de redirección al cargar
@@ -503,25 +507,6 @@ window.saveUsername = async function() {
     }
 };
 
-window.sendMessage = async function() {
-    const messageInput = document.getElementById('messageInput');
-    const message = messageInput.value.trim();
-    
-    if (message && auth.currentUser) {
-        try {
-            await push(messagesRef, {
-                text: message,
-                timestamp: Date.now(),
-                userId: auth.currentUser.uid,
-                userEmail: auth.currentUser.email
-            });
-            messageInput.value = '';
-        } catch (error) {
-            console.error('Error al enviar mensaje:', error);
-        }
-    }
-};
-
 // Función para limpiar presencia
 async function clearPresence(userId) {
     if (!userId) return;
@@ -542,63 +527,12 @@ window.addEventListener('beforeunload', async (event) => {
     }
 });
 
-// Función para enviar mensajes
-function sendMessage() {
-    const messageInput = document.getElementById('messageInput');
-    const message = messageInput.value.trim();
-    
-    if (message) {
-        const user = auth.currentUser;
-        if (user) {
-            const messagesRef = ref(database, 'messages');
-            push(messagesRef, {
-                text: message,
-                userId: user.uid,
-                userEmail: user.email,
-                timestamp: serverTimestamp()
-            });
-            messageInput.value = '';
-        }
-    }
-}
-
 // Agregar evento de tecla Enter para enviar mensajes
 document.getElementById('messageInput').addEventListener('keypress', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         sendMessage();
     }
-});
-
-// Escuchar cambios en los mensajes
-onChildAdded(messagesRef, (snapshot) => {
-    const message = snapshot.val();
-    const messagesDiv = document.getElementById('messages');
-    const messageElement = document.createElement('div');
-    messageElement.className = 'message';
-    
-    // Verificar si el mensaje es del usuario actual
-    const isCurrentUser = message.userId === auth.currentUser?.uid;
-    messageElement.classList.add(isCurrentUser ? 'message-own' : 'message-other');
-    
-    messageElement.innerHTML = `
-        <div class="message-content">
-            <div class="message-header">
-                <span class="message-author">${message.userEmail}</span>
-                <span class="message-time">${new Date(message.timestamp).toLocaleTimeString()}</span>
-            </div>
-            <div class="message-text">${message.text}</div>
-        </div>
-    `;
-    
-    messagesDiv.appendChild(messageElement);
-    messagesDiv.scrollTop = messagesDiv.scrollHeight;
-});
-
-// Escuchar cambios en la presencia
-onValue(presenceRef, (snapshot) => {
-    console.log('Cambio detectado en presencia');
-    updateUsersList(snapshot);
 });
 
 // Llamar a enforceCorrectTexts más frecuentemente al inicio
@@ -744,6 +678,22 @@ document.addEventListener('DOMContentLoaded', () => {
             height: styles.height,
             width: styles.width,
             position: styles.position
+        });
+    }
+});
+
+// Asegurar disponibilidad global
+window.sendMessage = sendMessage;
+
+// Evento Enter para enviar mensajes
+document.addEventListener('DOMContentLoaded', () => {
+    const messageInput = document.getElementById('messageInput');
+    if (messageInput) {
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
         });
     }
 });
