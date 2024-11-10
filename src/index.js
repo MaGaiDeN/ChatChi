@@ -133,6 +133,8 @@ async function updatePresence(user) {
                         lastSeen: serverTimestamp()
                     };
                     
+                    console.log('📝 Datos de presencia a guardar:', presenceData);
+                    
                     // Configurar limpieza
                     await onDisconnect(userPresenceRef).remove();
                     await set(userPresenceRef, presenceData);
@@ -144,51 +146,22 @@ async function updatePresence(user) {
             }
         });
 
-        // Escuchar cambios en todas las presencias individualmente
-        const allUids = new Set(); // Para mantener track de los UIDs únicos
-
-        // Función para escuchar un UID específico
-        const listenToUid = (uid) => {
-            const singlePresenceRef = ref(database, `presence/${uid}`);
-            onValue(singlePresenceRef, (snapshot) => {
-                if (snapshot.exists()) {
-                    console.log(`👤 Usuario activo: ${uid}`);
-                    updateUsersListFromIndividual();
+        // Escuchar cambios en todas las presencias
+        onValue(presenceRef, (snapshot) => {
+            console.log('👥 PRESENCIA: Cambio detectado en presencias');
+            const users = [];
+            snapshot.forEach((childSnapshot) => {
+                const userData = childSnapshot.val();
+                console.log('👤 Usuario activo:', userData);
+                if (userData.online) {
+                    users.push(userData);
                 }
             });
-        };
-
-        // Función para actualizar la lista de usuarios
-        const updateUsersListFromIndividual = async () => {
-            const users = [];
-            for (const uid of allUids) {
-                const singleRef = ref(database, `presence/${uid}`);
-                const snapshot = await get(singleRef);
-                if (snapshot.exists()) {
-                    users.push({
-                        uid,
-                        ...snapshot.val()
-                    });
-                }
-            }
+            
+            console.log('👥 Total usuarios online:', users.length);
             updateUsersList(users);
-        };
-
-        // Escuchar nuevas presencias
-        const presenceParentRef = ref(database, 'presence');
-        onChildAdded(presenceParentRef, (snapshot) => {
-            const uid = snapshot.key;
-            if (!allUids.has(uid)) {
-                allUids.add(uid);
-                listenToUid(uid);
-            }
-        });
-
-        // Eliminar presencias
-        onChildRemoved(presenceParentRef, (snapshot) => {
-            const uid = snapshot.key;
-            allUids.delete(uid);
-            updateUsersListFromIndividual();
+        }, (error) => {
+            console.error('🔴 Error leyendo presencias:', error);
         });
 
     } catch (error) {
@@ -252,6 +225,7 @@ function updateUsersList(users) {
 
     const onlineUsers = users.filter(u => u.online).length;
     userCount.textContent = onlineUsers.toString();
+    console.log('👥 USUARIOS: Total conectados:', onlineUsers);
 }
 
 // Función para manejar errores con logs
