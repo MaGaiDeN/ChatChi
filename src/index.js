@@ -718,3 +718,38 @@ document.getElementById('emailForm').addEventListener('submit', async (e) => {
         }
     }
 });
+
+// Logs para verificar carga inicial
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('🎨 DOM Cargado - Verificando estilos');
+    
+    const authContainer = document.getElementById('authContainer');
+    const chatContainer = document.getElementById('chatContainer');
+    
+    console.log('📦 Estado contenedores:', {
+        authContainer: {
+            existe: !!authContainer,
+            display: authContainer?.style.display,
+            className: authContainer?.className,
+            computedStyle: window.getComputedStyle(authContainer)
+        },
+        chatContainer: {
+            existe: !!chatContainer,
+            display: chatContainer?.style.display,
+            className: chatContainer?.className
+        }
+    });
+
+    // Verificar si los estilos se aplicaron
+    if (authContainer) {
+        const styles = window.getComputedStyle(authContainer);
+        console.log('🎨 Estilos auth-container:', {
+            display: styles.display,
+            justifyContent: styles.justifyContent,
+            alignItems: styles.alignItems,
+            height: styles.height,
+            width: styles.width,
+            position: styles.position
+        });
+    }
+});

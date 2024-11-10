@@ -4,10 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ChatChi - Chat en Tiempo Real</title>
+    <style>
+        /* Estilos críticos iniciales */
+        .auth-container {
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            min-height: 100vh !important;
+            width: 100vw !important;
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            background: #f0f2f5 !important;
+            padding: 20px !important;
+        }
+    </style>
 </head>
 <body>
     <!-- Contenedor de autenticación -->
-    <div id="authContainer" class="auth-container">
+    <div id="authContainer" class="auth-container" style="display: flex;">
         <div class="auth-box">
             <img src="/ChatChi/images/logo.png" alt="ChatChi Logo" class="auth-logo">
             <h2>Bienvenido a ChatChi</h2>
