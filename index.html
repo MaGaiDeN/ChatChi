@@ -207,4 +207,82 @@
         .current-user {
             background: #f0f2f5 !important;
             border-radius: 4px !important;
+        }
+
+        .chat-messages {
+            flex: 1 !important;
+            overflow-y: auto !important;
+            padding: 16px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 8px !important;
+        }
+
+        .message {
+            max-width: 70% !important;
+            margin: 4px 0 !important;
+        }
+
+        .message-own {
+            align-self: flex-end !important;
+        }
+
+        .message-other {
+            align-self: flex-start !important;
+        }
+
+        .message-content {
+            background: white !important;
+            padding: 8px 12px !important;
+            border-radius: 8px !important;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1) !important;
+        }
+
+        .message-own .message-content {
+            background: #0084ff !important;
+            color: white !important;
+        }
+
+        .message-header {
+            display: flex !important;
+            justify-content: space-between !important;
+            margin-bottom: 4px !important;
+            font-size: 12px !important;
+        }
+
+        .message-own .message-header {
+            color: rgba(255,255,255,0.8) !important;
+        }
+
+        .message-other .message-header {
+            color: #65676b !important;
+        }
+
+        .message-text {
+            word-break: break-word !important;
+        }
+
+        .chat-input {
+            padding: 16px !important;
+            background: white !important;
+            display: flex !important;
+            gap: 8px !important;
+            border-top: 1px solid #eee !important;
+        }
+
+        .chat-input input {
+            flex: 1 !important;
+            padding: 8px 12px !important;
+            border: 1px solid #ddd !important;
+            border-radius: 20px !important;
+            font-size: 14px !important;
+        }
+
+        .chat-input button {
+            padding: 8px 16px !important;
+            background: #0084ff !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 20px !important;
+            cursor: pointer !important;
         }</style><script defer="defer" src="/ChatChi/bundle.js"></script><link href="/ChatChi/styles.css" rel="stylesheet"></head><body><div id="authContainer" class="auth-container" style="display: flex;"><div class="auth-box"><img src="/ChatChi/images/logo.png" alt="ChatChi Logo" class="auth-logo"><h2>Bienvenido a ChatChi</h2><div id="loginError" class="error-message"></div><form id="emailForm" class="auth-form"><input id="usernameInput" placeholder="Nombre de usuario" required> <input type="email" id="emailInput" placeholder="Correo electrónico" required> <input type="password" id="passwordInput" placeholder="Contraseña" required> <button type="submit" class="email-btn">Iniciar sesión con Email</button></form><div class="auth-separator"><span>o</span></div><button onclick="handleGoogleAuth()" class="google-btn">Continuar con Google</button></div></div><div id="chatContainer" class="chat-container" style="display: none;"><div class="chat-layout"><div class="chat-main"><div class="user-info"><div class="user-details"><span id="username" class="username"></span> <span id="userEmail" class="user-email"></span></div><div class="user-actions"><button onclick="showChangeUsername()" class="change-name-btn">Cambiar nombre</button> <button onclick="handleLogout()" class="logout-btn">Cerrar Sesión</button></div></div><div id="messages" class="chat-messages"></div><div class="chat-input"><input id="messageInput" placeholder="Escribe un mensaje..." autocomplete="off"> <button onclick="sendMessage()">Enviar</button></div></div><div class="users-panel"><div class="users-header"><h3>Usuarios conectados</h3><span id="userCount">0</span></div><div id="usersList" class="users-list"></div></div></div></div><div id="usernameModal" class="modal" style="display: none;"><div class="modal-content"><h3>Cambiar nombre de usuario</h3><input id="usernameInput" placeholder="Nuevo nombre de usuario"><div class="modal-actions"><button onclick="saveUsername()">Guardar</button> <button onclick="document.getElementById('usernameModal').style.display='none'">Cancelar</button></div></div></div></body></html>
