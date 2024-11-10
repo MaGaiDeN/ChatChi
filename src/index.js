@@ -118,25 +118,34 @@ async function updatePresence(user) {
     }
 
     try {
+        // Referencias a la base de datos
         const userPresenceRef = ref(database, `presence/${user.uid}`);
         const connectedRef = ref(database, '.info/connected');
 
         // Listener de conexión
         onValue(connectedRef, async (snap) => {
+            console.log('🔌 Estado de conexión:', snap.val());
+            
             if (snap.val() === true) {
                 try {
                     // Datos de presencia
                     const presenceData = {
                         online: true,
                         email: user.email,
-                        displayName: user.displayName || user.email,
-                        lastSeen: serverTimestamp()
+                        displayName: user.displayName || 'Usuario',
+                        lastSeen: serverTimestamp(),
+                        uid: user.uid
                     };
                     
                     console.log('📝 Datos de presencia a guardar:', presenceData);
                     
-                    // Configurar limpieza
-                    await onDisconnect(userPresenceRef).remove();
+                    // Configurar limpieza al desconectar
+                    await onDisconnect(userPresenceRef).set({
+                        online: false,
+                        lastSeen: serverTimestamp()
+                    });
+
+                    // Guardar presencia actual
                     await set(userPresenceRef, presenceData);
                     
                     console.log('🟢 PRESENCIA: Actualizada para', user.email);
@@ -144,24 +153,6 @@ async function updatePresence(user) {
                     console.error('🔴 PRESENCIA: Error en actualización:', error);
                 }
             }
-        });
-
-        // Escuchar cambios en todas las presencias
-        onValue(presenceRef, (snapshot) => {
-            console.log('👥 PRESENCIA: Cambio detectado en presencias');
-            const users = [];
-            snapshot.forEach((childSnapshot) => {
-                const userData = childSnapshot.val();
-                console.log('👤 Usuario activo:', userData);
-                if (userData.online) {
-                    users.push(userData);
-                }
-            });
-            
-            console.log('👥 Total usuarios online:', users.length);
-            updateUsersList(users);
-        }, (error) => {
-            console.error('🔴 Error leyendo presencias:', error);
         });
 
     } catch (error) {
@@ -192,8 +183,8 @@ function clearUserData() {
 }
 
 // Función actualizada para mostrar usuarios
-function updateUsersList(users) {
-    console.log('👥 USUARIOS: Actualizando lista', users);
+function updateUsersList(snapshot) {
+    console.log('👥 USUARIOS: Actualizando lista');
     
     const usersList = document.getElementById('usersList');
     const userCount = document.getElementById('userCount');
@@ -204,26 +195,33 @@ function updateUsersList(users) {
     }
 
     usersList.innerHTML = '';
+    const users = [];
     const currentUser = auth.currentUser;
 
-    users.forEach(userData => {
+    snapshot.forEach((childSnapshot) => {
+        const userData = childSnapshot.val();
+        console.log('👤 Usuario encontrado:', userData);
         if (userData.online) {
-            const userDiv = document.createElement('div');
-            userDiv.className = 'user-item';
-            
-            if (currentUser && userData.email === currentUser.email) {
-                userDiv.className += ' current-user';
-            }
-
-            userDiv.innerHTML = `
-                <span class="user-status"></span>
-                <span class="user-name">${userData.displayName || userData.email}</span>
-            `;
-            usersList.appendChild(userDiv);
+            users.push(userData);
         }
     });
 
-    const onlineUsers = users.filter(u => u.online).length;
+    users.forEach(userData => {
+        const userDiv = document.createElement('div');
+        userDiv.className = 'user-item';
+        
+        if (currentUser && userData.uid === currentUser.uid) {
+            userDiv.className += ' current-user';
+        }
+
+        userDiv.innerHTML = `
+            <span class="user-status"></span>
+            <span class="user-name">${userData.displayName || userData.email}</span>
+        `;
+        usersList.appendChild(userDiv);
+    });
+
+    const onlineUsers = users.length;
     userCount.textContent = onlineUsers.toString();
     console.log('👥 USUARIOS: Total conectados:', onlineUsers);
 }
@@ -360,6 +358,19 @@ onAuthStateChanged(auth, async (user) => {
 function initializeChat() {
     console.log('11. Inicializando chat');
     
+    // Configurar listener de presencia
+    const presenceRef = ref(database, 'presence');
+    console.log('🎯 Configurando listener de presencia');
+    
+    onValue(presenceRef, (snapshot) => {
+        console.log('🔄 PRESENCIA: Cambio detectado');
+        const presenceData = snapshot.val();
+        console.log('🔄 PRESENCIA: Datos actuales:', presenceData);
+        updateUsersList(snapshot);
+    }, (error) => {
+        console.error('🔴 Error leyendo presencias:', error);
+    });
+
     // Verificar elementos del chat
     const elements = {
         messages: document.getElementById('messages'),
@@ -382,16 +393,6 @@ function initializeChat() {
     onChildAdded(messagesRef, (snapshot) => {
         console.log('14. Nuevo mensaje recibido:', snapshot.val());
         displayMessage(snapshot.val());
-    });
-
-    // Configurar listener de presencia
-    const presenceRef = ref(database, 'presence');
-    console.log('🎯 Configurando listener de presencia');
-    
-    onValue(presenceRef, (snapshot) => {
-        console.log('🔄 PRESENCIA: Cambio detectado');
-        console.log('🔄 PRESENCIA: Datos actuales:', snapshot.val());
-        updateUsersList(snapshot);
     });
 
     // Verificación periódica de presencia
