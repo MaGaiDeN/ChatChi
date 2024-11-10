@@ -476,3 +476,31 @@ document.addEventListener('DOMContentLoaded', () => {
     // Después, llamar periódicamente
     setInterval(enforceCorrectTexts, 2000);
 });
+
+// Manejar login con email
+document.getElementById('emailForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('emailInput').value;
+    const password = document.getElementById('passwordInput').value;
+    const errorDiv = document.getElementById('loginError');
+
+    try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        console.log('Login exitoso:', userCredential.user.email);
+        errorDiv.textContent = '';
+    } catch (error) {
+        console.error('Error en login:', error);
+        if (error.code === 'auth/user-not-found') {
+            // Si el usuario no existe, lo creamos
+            try {
+                await createUserWithEmailAndPassword(auth, email, password);
+                console.log('Usuario creado exitosamente');
+            } catch (createError) {
+                console.error('Error creando usuario:', createError);
+                errorDiv.textContent = 'Error al crear usuario';
+            }
+        } else {
+            errorDiv.textContent = 'Error en el inicio de sesión';
+        }
+    }
+});
