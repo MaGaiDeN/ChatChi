@@ -6,6 +6,7 @@
     <title>ChatChi - Chat en Tiempo Real</title>
 </head>
 <body>
+    <!-- Contenedor de autenticación -->
     <div id="authContainer" class="auth-container">
         <div class="auth-box">
             <img src="/ChatChi/images/logo.png" alt="ChatChi Logo" class="auth-logo">
@@ -35,34 +36,15 @@
                 <span>o</span>
             </div>
 
-            <div class="auth-buttons">
-                <button 
-                    onclick="handleGoogleAuth()" 
-                    class="google-btn"
-                    type="button">
-                    Continuar con Google
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <div id="usernameModal" class="modal notranslate" translate="no" style="display: none;">
-        <div class="modal-content">
-            <h3 translate="no">Cambiar nombre de usuario</h3>
-            <input 
-                type="text" 
-                id="usernameInput" 
-                placeholder="Escribe tu nombre de usuario"
-                maxlength="20"
-                translate="no"
-                class="notranslate"
-            >
-            <button onclick="saveUsername()" translate="no" class="notranslate">
-                Guardar nombre
+            <button 
+                onclick="handleGoogleAuth()" 
+                class="google-btn">
+                Continuar con Google
             </button>
         </div>
     </div>
 
+    <!-- Contenedor del chat -->
     <div id="chatContainer" class="chat-container" style="display: none;">
         <div class="chat-layout">
             <!-- Panel principal del chat -->
@@ -102,6 +84,24 @@
                     <span id="userCount">0</span>
                 </div>
                 <div id="usersList" class="users-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de cambio de nombre -->
+    <div id="usernameModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3>Cambiar nombre de usuario</h3>
+            <input 
+                type="text" 
+                id="usernameInput" 
+                placeholder="Nuevo nombre de usuario"
+            >
+            <div class="modal-actions">
+                <button onclick="saveUsername()">Guardar</button>
+                <button onclick="document.getElementById('usernameModal').style.display='none'">
+                    Cancelar
+                </button>
             </div>
         </div>
     </div>
