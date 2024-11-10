@@ -110,53 +110,32 @@ function enforceCorrectTexts() {
 
 // Función mejorada de presencia
 async function updatePresence(user) {
-    console.log('🟢 PRESENCIA: Iniciando actualización para:', user.email);
-    
     if (!user) {
-        console.error('🔴 PRESENCIA: No hay usuario');
+        console.error('🔴 No hay usuario autenticado');
         return;
     }
 
     try {
-        // Referencias a la base de datos
         const userPresenceRef = ref(database, `presence/${user.uid}`);
-        const connectedRef = ref(database, '.info/connected');
+        
+        // Datos de presencia
+        const presenceData = {
+            online: true,
+            email: user.email,
+            displayName: user.displayName || 'Usuario',
+            lastSeen: serverTimestamp(),
+            uid: user.uid
+        };
 
-        // Listener de conexión
-        onValue(connectedRef, async (snap) => {
-            console.log('🔌 Estado de conexión:', snap.val());
-            
-            if (snap.val() === true) {
-                try {
-                    // Datos de presencia
-                    const presenceData = {
-                        online: true,
-                        email: user.email,
-                        displayName: user.displayName || 'Usuario',
-                        lastSeen: serverTimestamp(),
-                        uid: user.uid
-                    };
-                    
-                    console.log('📝 Datos de presencia a guardar:', presenceData);
-                    
-                    // Configurar limpieza al desconectar
-                    await onDisconnect(userPresenceRef).set({
-                        online: false,
-                        lastSeen: serverTimestamp()
-                    });
+        // Actualizar presencia
+        await set(userPresenceRef, presenceData);
+        console.log('✅ Presencia actualizada:', presenceData);
 
-                    // Guardar presencia actual
-                    await set(userPresenceRef, presenceData);
-                    
-                    console.log('🟢 PRESENCIA: Actualizada para', user.email);
-                } catch (error) {
-                    console.error('🔴 PRESENCIA: Error en actualización:', error);
-                }
-            }
-        });
+        // Configurar limpieza al desconectar
+        onDisconnect(userPresenceRef).remove();
 
     } catch (error) {
-        console.error('🔴 PRESENCIA: Error general:', error);
+        console.error('❌ Error actualizando presencia:', error);
     }
 }
 
@@ -184,46 +163,38 @@ function clearUserData() {
 
 // Función actualizada para mostrar usuarios
 function updateUsersList(snapshot) {
-    console.log('👥 USUARIOS: Actualizando lista');
-    
     const usersList = document.getElementById('usersList');
     const userCount = document.getElementById('userCount');
     
-    if (!usersList || !userCount) {
-        console.error('🔴 USUARIOS: Elementos no encontrados');
-        return;
-    }
-
+    if (!usersList || !userCount) return;
+    
     usersList.innerHTML = '';
     const users = [];
-    const currentUser = auth.currentUser;
-
+    
     snapshot.forEach((childSnapshot) => {
         const userData = childSnapshot.val();
-        console.log('👤 Usuario encontrado:', userData);
         if (userData.online) {
             users.push(userData);
         }
     });
-
+    
     users.forEach(userData => {
         const userDiv = document.createElement('div');
         userDiv.className = 'user-item';
         
-        if (currentUser && userData.uid === currentUser.uid) {
+        if (auth.currentUser && userData.uid === auth.currentUser.uid) {
             userDiv.className += ' current-user';
         }
-
+        
         userDiv.innerHTML = `
             <span class="user-status"></span>
             <span class="user-name">${userData.displayName || userData.email}</span>
         `;
         usersList.appendChild(userDiv);
     });
-
-    const onlineUsers = users.length;
-    userCount.textContent = onlineUsers.toString();
-    console.log('👥 USUARIOS: Total conectados:', onlineUsers);
+    
+    userCount.textContent = users.length.toString();
+    console.log('👥 Usuarios conectados:', users.length);
 }
 
 // Función para manejar errores con logs
@@ -278,79 +249,32 @@ window.handleGoogleAuth = async function() {
 
 // Listener de autenticación con logs
 onAuthStateChanged(auth, async (user) => {
-    console.log('1. Estado de autenticación cambiado:', {
-        autenticado: !!user,
-        timestamp: new Date().toISOString()
-    });
+    console.log('👤 Estado de auth cambiado:', user?.email);
     
     if (user) {
-        console.log('2. Usuario autenticado:', {
-            email: user.email,
-            uid: user.uid,
-            displayName: user.displayName
+        // Usuario autenticado
+        document.getElementById('authContainer').style.display = 'none';
+        document.getElementById('chatContainer').style.display = 'block';
+        
+        // Actualizar UI
+        document.getElementById('username').textContent = user.displayName || 'Usuario';
+        document.getElementById('userEmail').textContent = user.email;
+        
+        // Actualizar presencia
+        await updatePresence(user);
+        
+        // Escuchar cambios en presencia
+        const allPresenceRef = ref(database, 'presence');
+        onValue(allPresenceRef, (snapshot) => {
+            console.log('👥 Actualizando lista de usuarios');
+            updateUsersList(snapshot);
         });
         
-        // Verificar elementos del DOM
-        const authContainer = document.getElementById('authContainer');
-        const chatContainer = document.getElementById('chatContainer');
-        console.log('3. Elementos del contenedor:', {
-            authContainer: !!authContainer,
-            chatContainer: !!chatContainer
-        });
-
-        // Cambiar visibilidad
-        if (authContainer) authContainer.style.display = 'none';
-        if (chatContainer) chatContainer.style.display = 'block';
-        
-        console.log('4. Visibilidad actualizada');
-
-        try {
-            // Actualizar UI
-            const userEmailElement = document.getElementById('userEmail');
-            if (userEmailElement) {
-                userEmailElement.textContent = user.email;
-                console.log('5. Email de usuario actualizado en UI');
-            }
-
-            // Actualizar presencia
-            console.log('6. Iniciando actualización de presencia');
-            await updatePresence(user);
-            
-            // Verificar datos de usuario
-            const userRef = ref(database, `users/${user.uid}`);
-            const snapshot = await get(userRef);
-            
-            console.log('7. Datos de usuario obtenidos:', {
-                existe: snapshot.exists(),
-                datos: snapshot.val()
-            });
-
-            if (snapshot.exists()) {
-                const usernameElement = document.getElementById('username');
-                if (usernameElement) {
-                    usernameElement.textContent = snapshot.val().username;
-                    console.log('8. Nombre de usuario actualizado en UI');
-                }
-            } else {
-                console.log('9. Usuario nuevo - Mostrando modal');
-                const modal = document.getElementById('usernameModal');
-                if (modal) modal.style.display = 'block';
-            }
-
-            // Inicializar chat
-            console.log('10. Iniciando configuración del chat');
-            initializeChat();
-
-        } catch (error) {
-            console.error('Error en configuración inicial:', error);
-        }
     } else {
-        console.log('X. No hay usuario autenticado');
-        const authContainer = document.getElementById('authContainer');
-        const chatContainer = document.getElementById('chatContainer');
-        
-        if (authContainer) authContainer.style.display = 'flex';
-        if (chatContainer) chatContainer.style.display = 'none';
+        // Usuario no autenticado
+        document.getElementById('authContainer').style.display = 'flex';
+        document.getElementById('chatContainer').style.display = 'none';
+        clearUserData();
     }
 });
 
