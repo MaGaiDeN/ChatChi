@@ -1,4 +1,18 @@
 <!doctype html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ChatChi - Chat en Tiempo Real</title><style>/* Estilos críticos iniciales */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+        }
+
         .auth-container {
             display: flex !important;
             justify-content: center !important;
@@ -10,4 +24,85 @@
             left: 0 !important;
             background: #f0f2f5 !important;
             padding: 20px !important;
+        }
+
+        .auth-box {
+            background: white !important;
+            padding: 30px !important;
+            border-radius: 8px !important;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1) !important;
+            width: 100% !important;
+            max-width: 400px !important;
+        }
+
+        .auth-logo {
+            width: 200px !important;
+            height: auto !important;
+            margin: 0 auto 20px !important;
+            display: block !important;
+        }
+
+        .auth-form {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 15px !important;
+            margin-bottom: 20px !important;
+        }
+
+        .auth-form input {
+            padding: 12px !important;
+            border: 1px solid #ddd !important;
+            border-radius: 4px !important;
+            font-size: 16px !important;
+        }
+
+        .email-btn, .google-btn {
+            width: 100% !important;
+            padding: 12px !important;
+            border: none !important;
+            border-radius: 4px !important;
+            font-size: 16px !important;
+            cursor: pointer !important;
+            margin-bottom: 10px !important;
+        }
+
+        .email-btn {
+            background: #0084ff !important;
+            color: white !important;
+        }
+
+        .google-btn {
+            background: white !important;
+            border: 1px solid #ddd !important;
+        }
+
+        .auth-separator {
+            text-align: center !important;
+            margin: 20px 0 !important;
+            position: relative !important;
+        }
+
+        .auth-separator::before,
+        .auth-separator::after {
+            content: '' !important;
+            position: absolute !important;
+            top: 50% !important;
+            width: 45% !important;
+            height: 1px !important;
+            background: #ddd !important;
+        }
+
+        .auth-separator::before { left: 0 !important; }
+        .auth-separator::after { right: 0 !important; }
+
+        h2 {
+            text-align: center !important;
+            margin-bottom: 20px !important;
+            color: #1c1e21 !important;
+        }
+
+        .error-message {
+            color: #dc3545 !important;
+            text-align: center !important;
+            margin: 10px 0 !important;
         }</style><script defer="defer" src="/ChatChi/bundle.js"></script><link href="/ChatChi/styles.css" rel="stylesheet"></head><body><div id="authContainer" class="auth-container" style="display: flex;"><div class="auth-box"><img src="/ChatChi/images/logo.png" alt="ChatChi Logo" class="auth-logo"><h2>Bienvenido a ChatChi</h2><div id="loginError" class="error-message"></div><form id="emailForm" class="auth-form"><input type="email" id="emailInput" placeholder="Correo electrónico" required> <input type="password" id="passwordInput" placeholder="Contraseña" required> <button type="submit" class="email-btn">Iniciar sesión con Email</button></form><div class="auth-separator"><span>o</span></div><button onclick="handleGoogleAuth()" class="google-btn">Continuar con Google</button></div></div><div id="chatContainer" class="chat-container" style="display: none;"><div class="chat-layout"><div class="chat-main"><div class="user-info"><div class="user-details"><span id="username" class="username"></span> <span id="userEmail" class="user-email"></span></div><div class="user-actions"><button onclick="showChangeUsername()" class="change-name-btn">Cambiar nombre</button> <button onclick="handleLogout()" class="logout-btn">Cerrar Sesión</button></div></div><div id="messages" class="chat-messages"></div><div class="chat-input"><input id="messageInput" placeholder="Escribe un mensaje..." autocomplete="off"> <button onclick="sendMessage()">Enviar</button></div></div><div class="users-panel"><div class="users-header"><h3>Usuarios conectados</h3><span id="userCount">0</span></div><div id="usersList" class="users-list"></div></div></div></div><div id="usernameModal" class="modal" style="display: none;"><div class="modal-content"><h3>Cambiar nombre de usuario</h3><input id="usernameInput" placeholder="Nuevo nombre de usuario"><div class="modal-actions"><button onclick="saveUsername()">Guardar</button> <button onclick="document.getElementById('usernameModal').style.display='none'">Cancelar</button></div></div></div></body></html>
