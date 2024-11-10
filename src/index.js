@@ -212,40 +212,61 @@ window.handleGoogleAuth = async function() {
     const errorDiv = document.getElementById('loginError');
     
     try {
-        const provider = new GoogleAuthProvider();
-        provider.addScope('email');
-        provider.addScope('profile');
-        
-        // Usar signInWithPopup en lugar de redirect
         console.log('2. Intentando autenticación con popup');
+        const provider = new GoogleAuthProvider();
         const result = await signInWithPopup(auth, provider);
+        
+        // Obtener el nombre de usuario del input
+        const usernameInput = document.getElementById('usernameInput');
+        const customUsername = usernameInput.value.trim();
+        
+        // Si hay un nombre de usuario personalizado, actualizarlo
+        if (customUsername) {
+            await updateProfile(result.user, {
+                displayName: customUsername
+            });
+            
+            // Actualizar presencia con el nuevo nombre
+            const userPresenceRef = ref(database, `presence/${result.user.uid}`);
+            await set(userPresenceRef, {
+                online: true,
+                email: result.user.email,
+                displayName: customUsername,
+                lastSeen: serverTimestamp(),
+                uid: result.user.uid
+            });
+        }
         
         console.log('3. Autenticación exitosa:', {
             email: result.user.email,
-            displayName: result.user.displayName
+            displayName: customUsername || result.user.displayName
         });
         
         errorDiv.textContent = '';
-    } catch (error) {
-        console.error('Error en autenticación:', {
-            code: error.code,
-            message: error.message
-        });
         
-        // Si falla el popup, intentar con redirect
-        if (error.code === 'auth/popup-blocked') {
-            try {
-                console.log('4. Popup bloqueado, intentando con redirect');
-                await signInWithRedirect(auth, provider);
-            } catch (redirectError) {
-                console.error('Error en redirect:', redirectError);
-                errorDiv.textContent = 'Error al iniciar sesión con Google';
-            }
-        } else {
-            errorDiv.textContent = 'Error al iniciar sesión con Google';
-        }
+    } catch (error) {
+        console.error('Error en auth con Google:', error);
+        handleAuthError(error, errorDiv);
     }
-};
+}
+
+// Actualizar el HTML para requerir el nombre de usuario
+document.addEventListener('DOMContentLoaded', () => {
+    const googleBtn = document.querySelector('.google-btn');
+    const usernameInput = document.getElementById('usernameInput');
+    
+    if (googleBtn && usernameInput) {
+        googleBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (!usernameInput.value.trim()) {
+                const errorDiv = document.getElementById('loginError');
+                errorDiv.textContent = 'Por favor, ingresa un nombre de usuario';
+                return;
+            }
+            handleGoogleAuth();
+        });
+    }
+});
 
 // Listener de autenticación con logs
 onAuthStateChanged(auth, async (user) => {
